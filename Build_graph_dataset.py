@@ -17,4 +17,4 @@ if __name__ == "__main__":
     graph_constructor = getattr(graph_constructor_obj, "build_dataset")
 
     dataset_path = graph_constructor(config['param']["image_dataset_root"],config['param']["graph_dataset_name"])
-
+    print("Dataset: ", dataset_path)
