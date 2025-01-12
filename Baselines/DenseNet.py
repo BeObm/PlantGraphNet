@@ -10,7 +10,9 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 set_seed()
 
 print("Loading dataset...")
-num_classes, train_loader, validation_loader, test_loader = load_data(dataset_dir="../dataset/images/Tomato", batch_size=32)
+print("Loading dataset...")
+num_classes, train_loader = load_data(dataset_dir="../dataset/images/train", batch_size=64)
+_, test_loader = load_data(dataset_dir="../dataset/images/val", batch_size=64)
 
 model = models.densenet121(pretrained=True)
 model.classifier = nn.Linear(model.classifier.in_features, num_classes)
@@ -83,17 +85,17 @@ for epoch in tqdm(range(num_epochs)):
     correct = 0
     total = 0
 
-    with torch.no_grad():
-        for inputs, labels in validation_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-
-    validation_accuracy = 100 * correct / total
-    validation_accuracy_values.append(validation_accuracy)
-    print(f'Validation Accuracy: {validation_accuracy}%')
+    # with torch.no_grad():
+    #     for inputs, labels in validation_loader:
+    #         inputs, labels = inputs.to(device), labels.to(device)
+    #         outputs = model(inputs)
+    #         _, predicted = torch.max(outputs.data, 1)
+    #         total += labels.size(0)
+    #         correct += (predicted == labels).sum().item()
+    #
+    # validation_accuracy = 100 * correct / total
+    # validation_accuracy_values.append(validation_accuracy)
+    # print(f'Validation Accuracy: {validation_accuracy}%')
 
     # Save the model if it's the best so far
     if validation_accuracy > best_validation_accuracy:

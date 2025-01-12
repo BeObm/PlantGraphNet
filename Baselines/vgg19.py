@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader, random_split
 set_seed()
 
 print("Loading dataset...")
-num_classes, train_loader, validation_loader, test_loader = load_data(dataset_dir="../dataset/images/Corn0", batch_size=32)
-
+num_classes, train_loader = load_data(dataset_dir="../dataset/images/train", batch_size=64)
+_, test_loader = load_data(dataset_dir="../dataset/images/val", batch_size=64)
 model = models.vgg19(pretrained='vggface', progress=True)
 for param in model.parameters():
     param.requires_grad = False  # Freeze all layers
@@ -85,22 +85,22 @@ for epoch in tqdm(range(num_epochs)):
     correct = 0
     total = 0
 
-    with torch.no_grad():
-        for inputs, labels in validation_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-
-    validation_accuracy = 100 * correct / total
-    validation_accuracy_values.append(validation_accuracy)
-    print(f'Validation Accuracy: {validation_accuracy}%')
-
-    # Save the model if it's the best so far
-    if validation_accuracy > best_validation_accuracy:
-        best_validation_accuracy = validation_accuracy
-        best_model_state = model.state_dict()
+    # with torch.no_grad():
+    #     for inputs, labels in validation_loader:
+    #         inputs, labels = inputs.to(device), labels.to(device)
+    #         outputs = model(inputs)
+    #         _, predicted = torch.max(outputs.data, 1)
+    #         total += labels.size(0)
+    #         correct += (predicted == labels).sum().item()
+    #
+    # validation_accuracy = 100 * correct / total
+    # validation_accuracy_values.append(validation_accuracy)
+    # print(f'Validation Accuracy: {validation_accuracy}%')
+    #
+    # # Save the model if it's the best so far
+    # if validation_accuracy > best_validation_accuracy:
+    #     best_validation_accuracy = validation_accuracy
+    #     best_model_state = model.state_dict()
 
 # Save the best model to disk
 torch.save(best_model_state, 'best_model.pth')

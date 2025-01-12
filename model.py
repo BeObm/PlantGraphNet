@@ -19,14 +19,11 @@ class GNNModel(torch.nn.Module):
     def forward(self, data):
         x, edge_index, img_feature,batch = data.x, data.edge_index, data.img_features, data.batch
 
-
-
         x0 = self.mlp_x0(img_feature)
         x = relu(self.conv1(x, edge_index))
         x = relu(self.conv2(x, edge_index))
         x = global_add_pool(x, batch)  # Global add pooling
         x = self.mlp_x(x)
-
 
         xt = torch.cat((x0,x),1)
 

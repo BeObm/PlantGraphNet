@@ -10,8 +10,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 set_seed()
 
 print("Loading dataset...")
-num_classes, train_loader = load_data(dataset_dir="../dataset/images/train", batch_size=32)
-_, test_loader = load_data(dataset_dir="../dataset/images/val", batch_size=32)
+num_classes, train_loader = load_data(dataset_dir="../dataset/images/train", batch_size=64)
+_, test_loader = load_data(dataset_dir="../dataset/images/val", batch_size=64)
 
 model = models.resnet50(pretrained=True)
 for param in model.parameters():

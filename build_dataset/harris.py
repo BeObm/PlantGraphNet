@@ -25,7 +25,6 @@ def image_to_graph(img_path, label):
     features = [np.append(coord, rgb) for coord, rgb in zip(coords, rgb_values)]
     features=np.array(features)
     x = torch.tensor(features, dtype=torch.float)
-    print(f"X shape: {x[1]}")
     foundation_model = models.densenet121(weights='DenseNet121_Weights.IMAGENET1K_V1')
     feature_extractor = torch.nn.Sequential(*list(foundation_model.features.children()))
     feature_extractor.eval()
