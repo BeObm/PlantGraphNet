@@ -50,7 +50,7 @@ def image_to_graph(img_path, label):
 
 
 # Build the PyTorch Geometric dataset
-def build_dataset(dataset_path, output_path):
+def build_dataset(dataset_path, output_path,nb_per_class=200):
     dataset = []
     class_folders = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
 
@@ -58,7 +58,7 @@ def build_dataset(dataset_path, output_path):
         pbar = tqdm(len(class_folders))
         pbar.set_description(f"Contructing graph data for label # {class_folder}... ")
         class_path = os.path.join(dataset_path, class_folder)
-        image_files = [f for f in os.listdir(class_path) if f.lower().endswith(('.png', '.jpg', '.jpeg','.tiff'))]
+        image_files = shuffle_dataset([f for f in os.listdir(class_path) if f.lower().endswith(('.png', '.jpg', '.jpeg','.tiff'))])[:nb_per_class]
         a = 1
         for img_file in image_files:
             img_path = os.path.join(class_path, img_file)

@@ -5,7 +5,7 @@ import torchvision.models as models
 from utils import *
 import os
 from tqdm import tqdm
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 # device = torch.device('cpu')
 set_seed()
 
@@ -97,16 +97,16 @@ for epoch in tqdm(range(num_epochs)):
     # validation_accuracy_values.append(validation_accuracy)
     # print(f'Validation Accuracy: {validation_accuracy}%')
 
-    # Save the model if it's the best so far
-    if validation_accuracy > best_validation_accuracy:
-        best_validation_accuracy = validation_accuracy
-        best_model_state = model.state_dict()
+    # # Save the model if it's the best so far
+    # if validation_accuracy > best_validation_accuracy:
+    #     best_validation_accuracy = validation_accuracy
+    #     best_model_state = model.state_dict()
 
 # Save the best model to disk
-torch.save(best_model_state, 'best_model.pth')
+# torch.save(best_model_state, 'best_model.pth')
 
 # Load the best model for testing
-model.load_state_dict(best_model_state)
+# model.load_state_dict(best_model_state)
 
 # Testing
 model.eval()
@@ -131,7 +131,7 @@ for metric, value in metrics.items():
     print(f"{metric} = {value}")
 
 with open("baseline_result.txt", 'a') as baseline:
-    baseline.write(f"{'+'*12}Model = vggface {'+'*12}\n")
+    baseline.write(f"{'+'*12}Model = MobileNetV2 {'+'*12}\n")
     for metric, value in metrics.items():
         baseline.write(f"{metric} = {value}")
     baseline.write("=="*25 + "\n")

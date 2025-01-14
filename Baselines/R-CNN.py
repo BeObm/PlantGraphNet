@@ -1,26 +1,40 @@
+import multiprocessing
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torchvision.models as models
+from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from utils import *
 import os
 from tqdm import tqdm
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# device = torch.device('cpu')
-set_seed()
+print("Device:", device)
+print("Number of GPUs:", torch.cuda.device_count())
+print("Number of CPUs:", multiprocessing.cpu_count())
+print("Is cuda available?",torch.cuda.is_available())
 
+set_seed()
 print("Loading dataset...")
 num_classes, train_loader = load_data(dataset_dir="../dataset/images/train", batch_size=64)
 _, test_loader = load_data(dataset_dir="../dataset/images/val", batch_size=64)
+model = fasterrcnn_resnet50_fpn(pretrained=True)  # Load the pretrained Faster R-CNN
+for param in model.backbone.parameters():
+    param.requires_grad = False  # Freeze backbone layers
 
 
-model = models.mobilenet_v3_small(pretrained=True)
-
-model.classifier[1] = nn.Linear(model.classifier[1].in_features, num_classes)
 
 
+# Set the number of classes for the R-CNN's head
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+model.roi_heads.box_predictor = FastRCNNPredictor(model.roi_heads.box_predictor.cls_score.in_features, num_classes)
+
+model = model.to(device)
+
+# Define loss function and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# Check if a saved model exists and load it
 saved_model_path = 'best_model.pth'
 
 if os.path.isfile(saved_model_path):
@@ -29,11 +43,8 @@ if os.path.isfile(saved_model_path):
         print(f"Loaded saved model from {saved_model_path}")
     except:
         pass
-
-model = model.to(device)
-
 # Training loop
-num_epochs = 50
+num_epochs =100
 best_validation_accuracy = 0.0
 best_model_state = model.state_dict()
 # Lists to store loss and accuracy values for plotting
@@ -47,10 +58,11 @@ for epoch in tqdm(range(num_epochs)):
     model.train()
     running_loss = 0.0
 
-    for inputs, labels in train_loader:
-        inputs, labels = inputs.to(device), labels.to(device)
+    for batch in train_loader:
+        inputs = batch[0].to(device)  # R-CNN processes only the image tensors
+        labels = batch[1].to(device)  # Move labels to device
         optimizer.zero_grad()
-        outputs = model(inputs)
+        outputs = model(inputs)["logits"]  # Extract classification logits
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
@@ -72,6 +84,7 @@ for epoch in tqdm(range(num_epochs)):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
+
     train_accuracy = 100 * correct / total
     train_accuracy_values.append(train_accuracy)
 
@@ -80,19 +93,19 @@ for epoch in tqdm(range(num_epochs)):
     # Validation
     correct = 0
     total = 0
-
-    # with torch.no_grad():
-    #     for inputs, labels in validation_loader:
-    #         inputs, labels = inputs.to(device), labels.to(device)
-    #         outputs = model(inputs)
-    #         _, predicted = torch.max(outputs.data, 1)
-    #         total += labels.size(0)
-    #         correct += (predicted == labels).sum().item()
-    #
-    # validation_accuracy = 100 * correct / total
-    # validation_accuracy_values.append(validation_accuracy)
-    # print(f'Validation Accuracy: {validation_accuracy}%')
-
+    
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)["logits"]  # Extract classification logits
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    
+    validation_accuracy = 100 * correct / total
+    validation_accuracy_values.append(validation_accuracy)
+    print(f'Validation Accuracy: {validation_accuracy}%')
+    
     # Save the model if it's the best so far
     if validation_accuracy > best_validation_accuracy:
         best_validation_accuracy = validation_accuracy
@@ -105,29 +118,32 @@ torch.save(best_model_state, 'best_model.pth')
 model.load_state_dict(best_model_state)
 
 # Testing
+# Testing phase
 model.eval()
-correct = 0
-total = 0
+y_pred = []
+y_true = []
 
 with torch.no_grad():
-    y_pred=[]
-    y_true=[]
     for inputs, labels in test_loader:
         inputs, labels = inputs.to(device), labels.to(device)
-        outputs = model(inputs)
-        _, predicted = torch.max(outputs.data, 1)
-        y_pred.append(predicted)
-        y_true.append(labels)
+        outputs = model(inputs)["logits"]  # Extract classification logits
+        _, predicted = torch.max(outputs, 1)
+        y_pred.append(predicted.cpu())  # Append tensors to list after moving to CPU
+        y_true.append(labels.cpu())     # Append tensors to list after moving to CPU
 
-y_pred = torch.cat(y_pred).cpu().numpy()
-y_true = torch.cat(y_true).cpu().numpy()
+# Concatenate the list of tensors into a single tensor for y_pred and y_true
+y_pred = torch.cat(y_pred)
+y_true = torch.cat(y_true)
 
+# If compute_metrics function accepts PyTorch tensors, then you can directly pass them
 metrics = compute_metrics(y_true=y_true, y_pred=y_pred)
 for metric, value in metrics.items():
     print(f"{metric} = {value}")
 
 with open("baseline_result.txt", 'a') as baseline:
-    baseline.write(f"{'+'*12}Model = vggface {'+'*12}\n")
+    baseline.write(f"{'+'*12}Model = Faster R-CNN {'+'*12}\n")
     for metric, value in metrics.items():
         baseline.write(f"{metric} = {value}")
     baseline.write("=="*25 + "\n")
+
+

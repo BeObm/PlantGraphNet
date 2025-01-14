@@ -1,3 +1,5 @@
+import multiprocessing
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -5,8 +7,11 @@ import torchvision.models as models
 from utils import *
 import os
 from tqdm import tqdm
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# device = torch.device('cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+print("Device:", device)
+print("Number of GPUs:", torch.cuda.device_count())
+print("Number of CPUs:", multiprocessing.cpu_count())
+print("Is cuda available?",torch.cuda.is_available())
 
 set_seed()
 print("Loading dataset...")
@@ -75,7 +80,6 @@ for epoch in tqdm(range(num_epochs)):
             correct += (predicted == labels).sum().item()
 
 
-
     train_accuracy = 100 * correct / total
     train_accuracy_values.append(train_accuracy)
 
@@ -132,7 +136,7 @@ for metric, value in metrics.items():
     print(f"{metric} = {value}")
 
 with open("baseline_result.txt", 'a') as baseline:
-    baseline.write(f"{'+'*12}Model = vggface {'+'*12}\n")
+    baseline.write(f"{'+'*12}Model = AlexNet {'+'*12}\n")
     for metric, value in metrics.items():
         baseline.write(f"{metric} = {value}")
     baseline.write("=="*25 + "\n")

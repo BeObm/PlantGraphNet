@@ -1,3 +1,4 @@
+import pandas as pd
 from torch.nn.functional import relu, log_softmax
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from torch_geometric.nn import global_add_pool
@@ -10,7 +11,8 @@ class GNNModel(torch.nn.Module):
         super(GNNModel, self).__init__()
         self.conv1 = Conv1(num_node_features, hidden_dim*2)
         self.conv2 = Conv2(hidden_dim*2, hidden_dim)
-        self.mlp_x0 = torch.nn.Linear(50176, hidden_dim)
+        self.mlp_x0 = torch.nn.Linear(50176, 1024)
+        self.mlp_x1 = torch.nn.Linear(1024, hidden_dim)
 
         self.mlp_x = torch.nn.Linear(hidden_dim, hidden_dim)
         self.fc = torch.nn.Linear(hidden_dim*2, num_classes)
@@ -20,6 +22,7 @@ class GNNModel(torch.nn.Module):
         x, edge_index, img_feature,batch = data.x, data.edge_index, data.img_features, data.batch
 
         x0 = self.mlp_x0(img_feature)
+        x0 = self.mlp_x1(x0)
         x = relu(self.conv1(x, edge_index))
         x = relu(self.conv2(x, edge_index))
         x = global_add_pool(x, batch)  # Global add pooling
@@ -67,6 +70,9 @@ def test(model, loader):
             y_true.extend(data.y.tolist())
             y_pred.extend(pred.tolist())
 
+    dict_pre={"y_true":y_true,"y_pred":y_pred}
+    dp=pd.DataFrame(dict_pre)
+    dp.to_csv("test_pred.csv")
     accuracy = accuracy_score(y_true, y_pred)
     precision = precision_score(y_true, y_pred, average='weighted')
     recall = recall_score(y_true, y_pred, average='weighted')
