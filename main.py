@@ -16,9 +16,9 @@ if __name__ == "__main__":
     parser.add_argument("--type_graph", default="harris", help="define how to construct nodes and egdes",
                        choices=["harris", "grid", "multi"])
     parser.add_argument("--hidden_dim", default=128, type=int, help="hidden_dim")
-    parser.add_argument("--num_epochs", type=int, default=50, help="num_epochs")
+    parser.add_argument("--num_epochs", type=int, default=2, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
-    parser.add_argument("--learning_rate", type=float, default=0.01, help="learning_rate")
+    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
     parser.add_argument("--Conv1", default=GraphConv, help="Conv1")
     parser.add_argument("--Conv2", default=GraphConv, help="Conv2")
@@ -41,6 +41,7 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     print(f"Feature size = {input_dim}|  num_class = {output_dim} ")
 
+    set_seed()
     model = GNNModel(input_dim, hidden_dim, output_dim, args.Conv1, args.Conv2).to(device)
 
     train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
