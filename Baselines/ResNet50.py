@@ -5,13 +5,13 @@ import torchvision.models as models
 from utils import *
 import os
 from tqdm import tqdm
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 # device = torch.device('cpu')
 set_seed()
 
 print("Loading dataset...")
-num_classes, train_loader = load_data(dataset_dir="../dataset/images/train", batch_size=32)
-_, test_loader = load_data(dataset_dir="../dataset/images/val", batch_size=32)
+num_classes, train_loader = load_data(dataset_dir="../dataset/images/train", batch_size=64)
+_, test_loader = load_data(dataset_dir="../dataset/images/val", batch_size=64)
 
 model = models.resnet50(pretrained=True)
 for param in model.parameters():
@@ -35,7 +35,7 @@ if os.path.isfile(saved_model_path):
         pass
 
 # Training loop
-num_epochs = 50
+num_epochs = 100
 best_validation_accuracy = 0.0
 best_model_state = model.state_dict()
 # Lists to store loss and accuracy values for plotting
@@ -48,7 +48,6 @@ print("Trainning Model...")
 for epoch in tqdm(range(num_epochs)):
     model.train()
     running_loss = 0.0
-
     for inputs, labels in train_loader:
         inputs, labels = inputs.to(device), labels.to(device)
         optimizer.zero_grad()
@@ -129,7 +128,7 @@ for metric, value in metrics.items():
     print(f"{metric} = {value}")
 
 with open("baseline_result.txt", 'a') as baseline:
-    baseline.write(f"{'+'*12}Model = vggface {'+'*12}\n")
+    baseline.write(f"{'+'*12}Model = ResNet50 {'+'*12}\n")
     for metric, value in metrics.items():
         baseline.write(f"{metric} = {value}")
     baseline.write("=="*25 + "\n")

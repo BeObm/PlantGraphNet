@@ -7,7 +7,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--dataset", help="Dataset name", default="train")
-    parser.add_argument("--type_graph", default="harris", help="define how to construct nodes and egdes",
+    parser.add_argument("--type_graph", default="multi", help="define how to construct nodes and egdes",
                         choices=["harris", "grid", "multi"])
     parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
 

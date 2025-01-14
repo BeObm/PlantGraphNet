@@ -28,7 +28,7 @@ def create_config_file(dataset_name,type_graph):
         "dataset_name": dataset_name,
         'type_graph': type_graph,
         "image_dataset_root": f"{project_root_dir}/dataset/images/{dataset_name}",
-        "graph_dataset_name": f"{graph_filename}/{dataset_name}.pt",
+        "graph_dataset_name": f"{graph_filename}/{type_graph}/{dataset_name}.pt",
         "result_folder": f"{configs_folder}",
         "sigma":1.0,
         "threshold":0.01,
@@ -151,6 +151,7 @@ def add_config(section_, key_, value_, ):
 
 
 def shuffle_dataset(original_list):
+    set_seed()
     shuffled_list = original_list.copy()
     random.shuffle(shuffled_list)
     return shuffled_list
@@ -167,3 +168,5 @@ def set_seed():
     os.environ['OMP_NUM_THREADS'] = '1'
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
