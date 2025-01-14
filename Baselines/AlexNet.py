@@ -131,7 +131,7 @@ for metric, value in metrics.items():
     print(f"{metric} = {value}")
 
 with open("baseline_result.txt", 'a') as baseline:
-    baseline.write(f"{'+'*12}Model = vggface {'+'*12}\n")
+    baseline.write(f"{'+'*12}Model = AlexNet {'+'*12}\n")
     for metric, value in metrics.items():
         baseline.write(f"{metric} = {value}")
     baseline.write("=="*25 + "\n")

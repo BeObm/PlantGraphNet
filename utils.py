@@ -21,14 +21,14 @@ def create_config_file(dataset_name,type_graph):
     configs_folder = osp.join(project_root_dir, f'results/{dataset_name}/{RunCode}')
     os.makedirs(configs_folder, exist_ok=True)
     config_filename = f"{configs_folder}/ConfigFile_{RunCode}.ini"
-    graph_filename = f"{project_root_dir}/dataset/graphs"
+    graph_filename = f"{project_root_dir}/dataset/graphs/{type_graph}"
     os.makedirs(graph_filename, exist_ok=True)
     config["param"] = {
         'config_filename': config_filename,
         "dataset_name": dataset_name,
         'type_graph': type_graph,
         "image_dataset_root": f"{project_root_dir}/dataset/images/{dataset_name}",
-        "graph_dataset_name": f"{graph_filename}/{type_graph}/{dataset_name}.pt",
+        "graph_dataset_name": f"{graph_filename}/{dataset_name}.pt",
         "result_folder": f"{configs_folder}",
         "sigma":1.0,
         "threshold":0.01,

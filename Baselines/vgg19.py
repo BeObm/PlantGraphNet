@@ -133,7 +133,7 @@ for metric, value in metrics.items():
     print(f"{metric.capitalize()}: {value}")
 
 with open("baseline_result.txt", 'a') as baseline:
-    baseline.write(f"{'+'*12} Model = vggface {'+'*12}\n")
+    baseline.write(f"{'+'*12} Model = vgg19 {'+'*12}\n")
     for metric, value in metrics.items():
         baseline.write(f"{metric.capitalize()}: {value}\n")
     baseline.write("="*50 + "\n")
