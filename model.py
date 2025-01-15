@@ -1,8 +1,69 @@
 from torch.nn.functional import relu, log_softmax
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from torch_geometric.nn import global_add_pool
-
 from utils import *
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class CNNModel(nn.Module):
+    def __init__(self, num_classes=10):  # num_classes can be adjusted for your dataset
+        super(CNNModel, self).__init__()
+
+        # First Convolutional Block
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
+
+        # Second Convolutional Block
+        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.conv4 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm2d(128)
+
+        # Third Convolutional Block
+        self.conv5 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=1)
+        self.bn5 = nn.BatchNorm2d(256)
+        self.conv6 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1)
+        self.bn6 = nn.BatchNorm2d(256)
+
+        # Fully Connected Layers
+        self.fc1 = nn.Linear(256 * 28 * 28, 1024)  # Assuming input image size is 32x32
+        self.fc2 = nn.Linear(1024, 512)
+        self.fc3 = nn.Linear(512, num_classes)
+
+        # Dropout
+        self.dropout = nn.Dropout(0.5)
+
+    def forward(self, x):
+        # First Convolutional Block with ReLU and Max Pooling
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.max_pool2d(x, kernel_size=2, stride=2)
+
+        # Second Convolutional Block with ReLU and Max Pooling
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = F.relu(self.bn4(self.conv4(x)))
+        x = F.max_pool2d(x, kernel_size=2, stride=2)
+
+        # Third Convolutional Block with ReLU and Max Pooling
+        x = F.relu(self.bn5(self.conv5(x)))
+        x = F.relu(self.bn6(self.conv6(x)))
+        x = F.max_pool2d(x, kernel_size=2, stride=2)
+        # Flatten the feature map
+        x = x.view(x.size(0), -1)  # Flatten for the fully connected layer
+
+        # Fully Connected Layers with Dropout
+        x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = F.relu(self.fc2(x))
+        x = self.dropout(x)
+        x = self.fc3(x)
+
+        return x
+
 
 
 class GNNModel(torch.nn.Module):

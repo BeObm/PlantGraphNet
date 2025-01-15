@@ -1,16 +1,18 @@
 
-import torch
 from configparser import ConfigParser
 import os.path as osp
-import os
 import csv
 import matplotlib.pyplot as plt
 import networkx as nx
 from datetime import datetime
 from skimage import io
-import random
+import torch
+from torchvision import datasets, transforms
+from torch.utils.data import   DataLoader
 import numpy as np
-from torchvision import transforms
+import os
+import random
+from Baselines.utils import *
 
 config = ConfigParser()
 RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
@@ -170,3 +172,43 @@ def set_seed():
     torch.backends.cudnn.benchmark = False
 
 
+def load_data(dataset_dir,batch_size=16,n=200):
+        # Create datasets
+        dataset = datasets.ImageFolder(dataset_dir, transform=transform())
+        num_classes = len(dataset.classes)
+        targets = [dataset.targets[i] for i in range(len(dataset))]
+        indices = list(range(len(dataset)))
+
+
+        # Create data loaders
+        num_samples_per_class = n
+
+        sampler = BalancedSampler(
+            indices=indices,
+            num_samples_per_class=num_samples_per_class,
+            class_to_idx=dataset.class_to_idx,
+            targets=targets
+        )
+
+        # total_length = len(dataset)
+        # train_size = int(0.8 * total_length)
+        # val_size = int(0.10 * total_length)
+        # test_size = total_length - train_size - val_size
+        # train_set, val_set, test_set = random_split(dataset, [train_size, val_size, test_size])
+
+        data_loader = DataLoader(dataset, batch_size=batch_size,  sampler=sampler)   #shuffle=True,
+        print(f"Dataset details: {count_classes(data_loader)}")
+
+        # validation_loader = DataLoader(val_set, batch_size=batch_size)
+        # test_loader = DataLoader(test_set, batch_size=batch_size)
+
+        return num_classes,data_loader
+
+
+def transform():
+        return transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(10),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
