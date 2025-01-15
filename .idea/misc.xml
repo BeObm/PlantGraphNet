@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="eco" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="eco" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="cdrp" project-jdk-type="Python SDK" />
 </project>
