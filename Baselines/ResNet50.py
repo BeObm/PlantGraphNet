@@ -37,7 +37,6 @@ if os.path.isfile(saved_model_path):
 # Training loop
 num_epochs = 100
 best_validation_accuracy = 0.0
-best_model_state = model.state_dict()
 # Lists to store loss and accuracy values for plotting
 train_loss_values = []
 validation_loss_values = []
@@ -81,29 +80,6 @@ for epoch in tqdm(range(num_epochs)):
     # Validation
     correct = 0
     total = 0
-
-#     with torch.no_grad():
-#         for inputs, labels in validation_loader:
-#             inputs, labels = inputs.to(device), labels.to(device)
-#             outputs = model(inputs)
-#             _, predicted = torch.max(outputs.data, 1)
-#             total += labels.size(0)
-#             correct += (predicted == labels).sum().item()
-#
-#     validation_accuracy = 100 * correct / total
-#     validation_accuracy_values.append(validation_accuracy)
-#     print(f'Validation Accuracy: {validation_accuracy}%')
-#
-#     # Save the model if it's the best so far
-#     if validation_accuracy > best_validation_accuracy:
-#         best_validation_accuracy = validation_accuracy
-#         best_model_state = model.state_dict()
-#
-# # Save the best model to disk
-# torch.save(best_model_state, 'best_model.pth')
-#
-# # Load the best model for testing
-# model.load_state_dict(best_model_state)
 
 # Testing
 model.eval()

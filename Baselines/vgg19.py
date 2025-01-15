@@ -12,7 +12,8 @@ from torch.utils.data import DataLoader, random_split
 set_seed()
 
 print("Loading dataset...")
-num_classes, train_loader, validation_loader, test_loader = load_data(dataset_dir="../dataset/images/Corn0", batch_size=32)
+num_classes, train_loader = load_data(dataset_dir="../dataset/images/train", batch_size=64)
+_, test_loader = load_data(dataset_dir="../dataset/images/val", batch_size=64)
 
 model = models.vgg19(pretrained='vggface', progress=True)
 for param in model.parameters():

@@ -11,8 +11,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 set_seed()
 
 print("Loading dataset...")
-num_classes, train_loader, validation_loader, test_loader = load_data("../dataset/images/Potato")
-
+num_classes, train_loader = load_data(dataset_dir="../dataset/images/train", batch_size=64)
+_, test_loader = load_data(dataset_dir="../dataset/images/val", batch_size=64)
 # Load a pre-trained ResNet-50 model
 model = models.vgg16(pretrained='vggface', progress=True)
 
