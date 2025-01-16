@@ -3,3 +3,7 @@
 *.pth
 .idea/HeathlandSpeciesClassifier.iml
 .idea/misc.xml
+*.iml
+*.xml
+*.pyc
+*.pyc
