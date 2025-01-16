@@ -1,4 +1,10 @@
 
+/dataset
 *.pth
-/dataset/graphs
+.idea/HeathlandSpeciesClassifier.iml
+.idea/misc.xml
+*.iml
+*.xml
 *.pyc
+*.pyc
+*.ipynb

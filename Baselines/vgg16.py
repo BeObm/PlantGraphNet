@@ -6,7 +6,7 @@ import torchvision.models as models
 import matplotlib.pyplot as plt
 import os
 from tqdm import tqdm
-device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # device = torch.device('cpu')
 set_seed()
 
@@ -89,22 +89,22 @@ for epoch in tqdm(range(num_epochs)):
     correct = 0
     total = 0
 
-    # with torch.no_grad():
-    #     for inputs, labels in validation_loader:
-    #         inputs, labels = inputs.to(device), labels.to(device)
-    #         outputs = model(inputs)
-    #         _, predicted = torch.max(outputs.data, 1)
-    #         total += labels.size(0)
-    #         correct += (predicted == labels).sum().item()
-    #
-    # validation_accuracy = 100 * correct / total
-    # validation_accuracy_values.append(validation_accuracy)
-    # print(f'Validation Accuracy: {validation_accuracy}%')
-    #
-    # # Save the model if it's the best so far
-    # if validation_accuracy > best_validation_accuracy:
-    #     best_validation_accuracy = validation_accuracy
-    #     best_model_state = model.state_dict()
+    with torch.no_grad():
+        for inputs, labels in validation_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    validation_accuracy = 100 * correct / total
+    validation_accuracy_values.append(validation_accuracy)
+    print(f'Validation Accuracy: {validation_accuracy}%')
+
+    # Save the model if it's the best so far
+    if validation_accuracy > best_validation_accuracy:
+        best_validation_accuracy = validation_accuracy
+        best_model_state = model.state_dict()
 
 # Save the best model to disk
 torch.save(best_model_state, 'best_model.pth')
@@ -116,6 +116,7 @@ model.load_state_dict(best_model_state)
 model.eval()
 correct = 0
 total = 0
+
 with torch.no_grad():
     y_pred=[]
     y_true=[]
@@ -134,7 +135,7 @@ for metric, value in metrics.items():
     print(f"{metric} = {value}")
 
 with open("baseline_result.txt", 'a') as baseline:
-    baseline.write(f"{'+'*12}Model = vgg16 {'+'*12}\n")
+    baseline.write(f"{'+'*12}  Model = vgg16 {'+'*12}\n")
     for metric, value in metrics.items():
         baseline.write(f"{metric} = {value}")
     baseline.write("=="*25 + "\n")

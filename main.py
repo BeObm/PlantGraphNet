@@ -13,7 +13,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--dataset", help="Dataset name", default="train")
-    parser.add_argument("--type_graph", default="harris", help="define how to construct nodes and egdes",
+    parser.add_argument("--type_graph", default="multi", help="define how to construct nodes and egdes",
                        choices=["harris", "grid", "multi"])
     parser.add_argument("--hidden_dim", default=128, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=2, help="num_epochs")
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate,weight_decay=args.wd)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate,weight_decay=args.wd)
     pbar = tqdm(num_epochs)
     pbar.set_description("training model")
     best_loss=99999
