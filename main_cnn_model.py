@@ -8,12 +8,13 @@ from utils import *
 import os
 from tqdm import tqdm
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print("device:", torch.cuda.is_available())
 # device = torch.device('cpu')
 
 set_seed()
 print("Loading dataset...")
-num_classes, train_loader = load_data(dataset_dir="dataset/images/train", batch_size=64)
-_, test_loader = load_data(dataset_dir="dataset/images/val", batch_size=64)
+num_classes, train_loader = load_data(dataset_dir="dataset/images/train", batch_size=32)
+_, test_loader = load_data(dataset_dir="dataset/images/val", batch_size=32)
 
 model = CNNModel()
 
