@@ -14,10 +14,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--dataset", help="Dataset name", default="train")
-    parser.add_argument("--type_graph", default="multi", help="define how to construct nodes and egdes",
-                       choices=["harris", "grid", "multi"])
+    parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
     parser.add_argument("--hidden_dim", default=128, type=int, help="hidden_dim")
-    parser.add_argument("--num_epochs", type=int, default=50, help="num_epochs")
+    parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
@@ -26,9 +25,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     create_config_file(args.dataset,args.type_graph)
-    # graph_constructor_obj = importlib.import_module(f"build_dataset.{args.type_graph}")
-    # graph_constructor = getattr(graph_constructor_obj,"build_dataset")
-    # # dataset_path = graph_constructor(config['param']["image_dataset_root"],config['param']["graph_dataset_name"])
 
     data = torch.load(config['param']["graph_dataset_name"])
     test_data = torch.load("dataset/graphs/val.pt")

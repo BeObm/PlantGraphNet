@@ -17,24 +17,21 @@ if __name__ == "__main__":
     set_seed()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="baseline",
-                        choices=["baseline", "Our_CNN_Model"])
-    parser.add_argument("--model_name", help="Model name", default="GoogleNet",
-                        choices=["VGG19", "VGG16", "ResNet50", "AlexNet", "MobileNetV2", "GoogleNet"])
-    parser.add_argument("--dataset_size", type=int, default=10, help="number  of images to use for training per class, 0 means all")
+    parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="baseline", choices=["baseline", "Our_CNN_Model"])
+    parser.add_argument("--model_name", help="Model name", default="MobileNetV2", choices=["VGG19", "VGG16", "ResNet50", "AlexNet", "MobileNetV2", "GoogleNet"])
+    parser.add_argument("--dataset_size", type=int, default=0, help="number  of images to use for training per class, 0 means all")
     parser.add_argument("--hidden_dim", default=128, type=int, help="hidden_dim")
-    parser.add_argument("--num_epochs", type=int, default=2, help="num_epochs")
+    parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
     parser.add_argument("--learning_rate", type=float, default=0.005, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.0001, help="wd")
     parser.add_argument("--criterion", default="CrossEntropy", help="criterion")
 
     args = parser.parse_args()
-    args.result_dir = f"results/{args.model_name}"
-    os.makedirs(args.result_dir, exist_ok=True)
 
-    num_classes, train_loader, class_names = load_data(dataset_dir="dataset/images/train", batch_size=args.batch_size, num_samples_per_class=args.dataset_size)
-    _, test_loader, _ = load_data(dataset_dir="dataset/images/val", batch_size=args.batch_size,num_samples_per_class=args.dataset_size)
+
+    num_classes, train_loader, class_names = load_data(dataset_dir="dataset/images/train", batch_size=args.batch_size, num_samples_per_class=args.dataset_size,type_data="train")
+    _, test_loader, _ = load_data(dataset_dir="dataset/images/val", batch_size=args.batch_size,num_samples_per_class=args.dataset_size,type_data="test")
 
 
     start_time = datetime.now()
@@ -44,7 +41,13 @@ if __name__ == "__main__":
         model = CNNModel()
         args.model_name = "Our_CNN_Model"
 
-    saved_model_path = f'{args.model_name}_weight.pth'
+    if args.dataset_size == 0:
+        args.result_dir = f"results/CNN Models/full_dataset/{args.model_name}"
+    else:
+        args.result_dir = f"results/CNN Models/{args.dataset_size}images_per_class/{args.model_name}"
+    os.makedirs(args.result_dir, exist_ok=True)
+    saved_model_path = f'{args.result_dir}/{args.model_name}_weight.pth'
+
     if os.path.isfile(saved_model_path):
         try:
             model.load_state_dict(torch.load(saved_model_path))
@@ -55,9 +58,10 @@ if __name__ == "__main__":
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=0.0001)
-    train_model(model, train_loader, test_loader, criterion, optimizer, args=args)
+    model= train_model(model, train_loader, test_loader, criterion, optimizer, args=args)
+    torch.save(model.state_dict(), saved_model_path)
     end_time = datetime.now()
-    cl_report = test_model(model, test_loader, args.model_name, class_names)
+    cl_report = test_model(model, test_loader, class_names,args=args)
 
     cr = pd.DataFrame(cl_report).transpose()
     cr.to_excel(f"{args.result_dir}/result_for_{args.model_name}.xlsx")

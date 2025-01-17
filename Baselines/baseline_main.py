@@ -49,7 +49,7 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=0.0001)
     train_model(model, train_loader, test_loader, criterion, optimizer, args.num_epochs,result_dir=args.result_dir)
-    cl_report = test_model(model, test_loader, args.model_name,class_names)
+    cl_report = test_model(model, test_loader,class_names, args)
 
     cr = pd.DataFrame(cl_report).transpose()
 

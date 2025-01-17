@@ -61,12 +61,9 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, args):
                 correct += (predicted == labels).sum().item()
         test_accuracy = 100 * correct / total
         test_accuracy_values_during_training.append(test_accuracy)
+        # print(f"total: {total} correct: {correct} test_accuracy: {test_accuracy} train_accuracy: {train_accuracy} train_loss: {train_loss} \n")
+        print(f' <<{"="*8}  Epoch {epoch + 1}| Train Loss: {train_loss} | Train Accuracy: {train_accuracy}%  | Test ACC: {test_accuracy} {"="*8}>> \n ')
 
-        print(f' <<{"="*8}  Epoch {epoch + 1}| Train Loss: {train_loss} | Train Accuracy: {train_accuracy}%  | Test ACC: {test_accuracy} {"="*8}>> ')
-
-        # Validation
-        correct = 0
-        total = 0
 
     # Save metrics and plots
     save_training_details(
@@ -80,7 +77,7 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, args):
 
     return model
 
-def test_model(model, test_loader, model_name,class_names):
+def test_model(model, test_loader, class_names,args):
 
     model.eval()
     y_pred = []
@@ -101,9 +98,9 @@ def test_model(model, test_loader, model_name,class_names):
     plot_confusion_matrix(y_true=y_true,
                           y_pred=y_pred,
                           class_names=class_names,
-                          file_name= f"results/{model_name}/confusion_matrix.pdf"
+                          file_name= f"{args.result_dir}/confusion_matrix.pdf"
                           )
-    print(f"Confusion Matrix for {model_name} is saved in {model_name}_confusion_matrix.pdf")
+    print(f"Confusion Matrix for {args.model_name} is saved in {args.model_name}_confusion_matrix.pdf")
 
     cls_report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
 

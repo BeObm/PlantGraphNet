@@ -170,9 +170,9 @@ def set_seed():
     torch.backends.cudnn.benchmark = False
 
 
-def load_data(dataset_dir,batch_size=16,num_samples_per_class=0):
+def load_data(dataset_dir,batch_size=16,num_samples_per_class=0,type_data="train"):
         # Create datasets
-        dataset = datasets.ImageFolder(dataset_dir, transform=transform())
+        dataset = datasets.ImageFolder(dataset_dir, transform=transform(type_data=type_data))
         num_classes = len(dataset.classes)
         targets = [dataset.targets[i] for i in range(len(dataset))]
         indices = list(range(len(dataset)))
@@ -187,30 +187,50 @@ def load_data(dataset_dir,batch_size=16,num_samples_per_class=0):
             targets=targets
         )
 
-        # total_length = len(dataset)
-        # train_size = int(0.8 * total_length)
-        # val_size = int(0.10 * total_length)
-        # test_size = total_length - train_size - val_size
-        # train_set, val_set, test_set = random_split(dataset, [train_size, val_size, test_size])
-        if num_samples_per_class==0:
-            data_loader = DataLoader(dataset,  batch_size=batch_size,shuffle=True)   #shuffle=True,
+        if type_data=="train":
+            if num_samples_per_class==0:
+                data_loader = DataLoader(dataset,  batch_size=batch_size,shuffle=True)
+            else:
+                data_loader = DataLoader(dataset,  batch_size=batch_size,  sampler=sampler)
+
+        elif type_data=="test":
+            data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
         else:
-            data_loader = DataLoader(dataset,  batch_size=batch_size,  sampler=sampler)   #shuffle=True,
+            raise ValueError(f"Unsupported type_data: {type_data}. Use 'train' or 'test'.")
+
         print(f"Dataset details: {count_classes(data_loader)}")
-
-        # validation_loader = DataLoader(val_set, batch_size=batch_size)
-        # test_loader = DataLoader(test_set, batch_size=batch_size)
-
-        return num_classes,data_loader,dataset.classes
+        return num_classes, data_loader, dataset.classes
 
 
-def transform():
-        return transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomRotation(10),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+def transform(type_data="train"):
+    # Common preprocessing steps
+    preprocessing = [
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ]
+
+    if type_data == "train":
+        # Additional augmentations for training
+        augmentations = [
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(45),
+            transforms.RandomResizedCrop(
+                size=(224, 224),
+                scale=(0.8, 1.0),
+                ratio=(0.9, 1.1),
+                interpolation=transforms.InterpolationMode.BILINEAR
+            )
+        ]
+        return transforms.Compose(augmentations + preprocessing)
+
+    elif type_data == "test":
+        # No augmentations for test data, only preprocessing
+        return transforms.Compose(preprocessing)
+
+    else:
+        raise ValueError(f"Unsupported type_data: {type_data}. Use 'train' or 'test'.")
 
 
 

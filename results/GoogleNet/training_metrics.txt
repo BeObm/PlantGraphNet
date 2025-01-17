@@ -1,9 +1,0 @@
-Training Loss:
-2.324052631855011, 2.2754680514335632
-
-Training Accuracy:
-9.0, 12.0
-
-Test Accuracy during training:
-8.0, 13.0
-
