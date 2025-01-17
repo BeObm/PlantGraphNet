@@ -1,5 +1,4 @@
 from torch.nn.functional import relu, log_softmax
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from torch_geometric.nn import global_add_pool
 from utils import *
 import torch
@@ -80,8 +79,6 @@ class GNNModel(torch.nn.Module):
     def forward(self, data):
         x, edge_index, img_feature,batch = data.x, data.edge_index, data.img_features, data.batch
 
-
-
         x0 = self.mlp_x0(img_feature)
         x = relu(self.conv1(x, edge_index))
         x = relu(self.conv2(x, edge_index))
@@ -96,7 +93,7 @@ class GNNModel(torch.nn.Module):
         return log_softmax(x, dim=1)
 
 
-def train(model, train_loader, optimizer, criterion, device=device):
+def train(model, train_loader, optimizer, criterion, device):
     model.train()
     total_loss = 0
     correct = 0

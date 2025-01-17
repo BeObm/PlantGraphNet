@@ -6,13 +6,14 @@ from torchvision.models.detection import fasterrcnn_resnet50_fpn
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-
+from main_cnn_model import CNNModel
 # Load the model (Faster R-CNN in this example)
-st.title("Image Detection with PyTorch and Streamlit")
+st.title("Image Classification  ")
 
 @st.cache_resource
-def load_model():
-    model = fasterrcnn_resnet50_fpn(pretrained=True)
+def load_model(Model, best_model_state_path="best_model_state.pth"):
+    model = CNNModel()
+    model.load_state_dict(best_model_state_path)
     model.eval()
     return model
 

@@ -1,23 +1,21 @@
 
-from configparser import ConfigParser
-import os.path as osp
 import csv
+import os.path as osp
+from configparser import ConfigParser
+from datetime import datetime
+import seaborn as sns
+from openpyxl import load_workbook
+import pandas as pd
 import matplotlib.pyplot as plt
 import networkx as nx
-from datetime import datetime
 from skimage import io
-import torch
-from torchvision import datasets, transforms
-from torch.utils.data import   DataLoader
-import numpy as np
-import os
-import random
+from sklearn.metrics import confusion_matrix
+
 from Baselines.utils import *
 
 config = ConfigParser()
 RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
 project_root_dir = os.path.abspath(os.getcwd())
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def create_config_file(dataset_name,type_graph):
     configs_folder = osp.join(project_root_dir, f'results/{dataset_name}/{RunCode}')
@@ -172,7 +170,7 @@ def set_seed():
     torch.backends.cudnn.benchmark = False
 
 
-def load_data(dataset_dir,batch_size=16,n=200):
+def load_data(dataset_dir,batch_size=16,num_samples_per_class=0):
         # Create datasets
         dataset = datasets.ImageFolder(dataset_dir, transform=transform())
         num_classes = len(dataset.classes)
@@ -181,7 +179,6 @@ def load_data(dataset_dir,batch_size=16,n=200):
 
 
         # Create data loaders
-        num_samples_per_class = n
 
         sampler = BalancedSampler(
             indices=indices,
@@ -195,14 +192,16 @@ def load_data(dataset_dir,batch_size=16,n=200):
         # val_size = int(0.10 * total_length)
         # test_size = total_length - train_size - val_size
         # train_set, val_set, test_set = random_split(dataset, [train_size, val_size, test_size])
-
-        data_loader = DataLoader(dataset, batch_size=batch_size,  sampler=sampler)   #shuffle=True,
+        if num_samples_per_class==0:
+            data_loader = DataLoader(dataset,  batch_size=batch_size,shuffle=True)   #shuffle=True,
+        else:
+            data_loader = DataLoader(dataset,  batch_size=batch_size,  sampler=sampler)   #shuffle=True,
         print(f"Dataset details: {count_classes(data_loader)}")
 
         # validation_loader = DataLoader(val_set, batch_size=batch_size)
         # test_loader = DataLoader(test_set, batch_size=batch_size)
 
-        return num_classes,data_loader
+        return num_classes,data_loader,dataset.classes
 
 
 def transform():
@@ -212,3 +211,89 @@ def transform():
     transforms.RandomRotation(10),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+
+
+
+def save_training_details(train_loss, train_acc, test_acc, txt_file, pdf_file,model_name):
+    """
+    Save the provided metric values into a .txt file and generate plots saved into a PDF file.
+
+    Args:
+        train_loss (list): List of training loss values.
+        train_acc (list): List of training accuracy values.
+        test_acc (list): List of test accuracy values.
+        txt_file (str): Path to the output .txt file for saving metrics.
+        pdf_file (str): Path to the output PDF file for saving plots.
+    """
+
+    # Save the metrics into a .txt file
+    with open(txt_file, "w") as f:
+        f.write("Training Loss:\n")
+        f.write(", ".join(map(str, train_loss)) + "\n\n")
+        f.write("Training Accuracy:\n")
+        f.write(", ".join(map(str, train_acc)) + "\n\n")
+        f.write("Test Accuracy during training:\n")
+        f.write(", ".join(map(str, test_acc)) + "\n\n")
+
+    plt.figure(figsize=(10, 6))
+
+    # Plot Train Loss
+    plt.plot(range(len(train_loss)),train_loss, label='Train Loss', color='red', linestyle='--')
+
+    # Plot Train Accuracy
+    plt.plot(range(len(train_acc)), train_acc, label='Train Accuracy', color='blue')
+
+    # Plot Test Accuracy
+    plt.plot(range(len(test_acc)), test_acc, label='Test Accuracy', color='green')
+
+    # Add labels and title
+    plt.xlabel('Epochs')
+    plt.ylabel('Values')
+    plt.title('Trainning stats for model:' + model_name )
+
+    # Show legend
+    plt.legend()
+
+    # Add grid
+    plt.grid(True)
+
+    # Save the plot as a PDF file
+    plt.savefig(pdf_file, format='pdf')
+
+    # Show the plot
+    plt.show()
+
+
+def plot_confusion_matrix(y_true, y_pred, class_names, file_name="confusion_matrix.pdf"):
+    # Compute confusion matrix
+    conf_matrix = confusion_matrix(y_true, y_pred)
+
+    # Normalize the confusion matrix (optional, you can comment this line if you want raw counts)
+    conf_matrix_norm = conf_matrix.astype('float') / conf_matrix.sum(axis=1)[:, np.newaxis]
+
+    # Create a heatmap using seaborn for better visualization
+    plt.figure(figsize=(8, 8))
+    ax = sns.heatmap(conf_matrix_norm, annot=True, fmt=".2f", cmap="Blues", xticklabels=class_names,
+                     yticklabels=class_names, cbar=True)
+
+    # Add labels and title
+    plt.title("Confusion Matrix", fontsize=16)
+    plt.xlabel("Predicted", fontsize=14)
+    plt.ylabel("True", fontsize=14)
+
+    # Save the confusion matrix plot to a PDF file
+    plt.savefig(file_name)
+    plt.close()  # Close the plot after saving
+
+
+def save_multiple_time_to_excel_with_date(cr, args):
+    output_file_path = os.path.join(args.result_dir, f"result_for_{args.model_name}.xlsx")
+    current_date = datetime.now().strftime("%Y-%m-%d")
+
+    if os.path.exists(output_file_path):
+        workbook = load_workbook(output_file_path)
+        with pd.ExcelWriter(output_file_path, engine="openpyxl", mode="a") as writer:
+            writer.book = workbook
+            cr.to_excel(writer, sheet_name=current_date)
+    else:
+        cr.to_excel(output_file_path)

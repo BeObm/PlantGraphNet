@@ -1,8 +1,7 @@
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import torch
 from torchvision import datasets, transforms
-from torch.utils.data import  random_split, DataLoader, SubsetRandomSampler
-# from torch.utils.data.dataloader import DataLoader
+from torch.utils.data import  DataLoader, SubsetRandomSampler
 import numpy as np
 import os
 import random
@@ -29,37 +28,37 @@ def transform():
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 
 
-def load_data(dataset_dir,batch_size=16,n=200):
-        # Create datasets
-        dataset = datasets.ImageFolder(dataset_dir, transform=transform())
-        num_classes = len(dataset.classes)
-        targets = [dataset.targets[i] for i in range(len(dataset))]
-        indices = list(range(len(dataset)))
+def load_data(dataset_dir, batch_size=16, n=200):
+    # Create datasets
+    dataset = datasets.ImageFolder(dataset_dir, transform=transform())
+    num_classes = len(dataset.classes)
+    targets = [dataset.targets[i] for i in range(len(dataset))]
+    indices = list(range(len(dataset)))
 
+    # Create data loaders
+    num_samples_per_class = n
 
-        # Create data loaders
-        num_samples_per_class = n
+    sampler = BalancedSampler(
+        indices=indices,
+        num_samples_per_class=num_samples_per_class,
+        class_to_idx=dataset.class_to_idx,
+        targets=targets
+    )
 
-        sampler = BalancedSampler(
-            indices=indices,
-            num_samples_per_class=num_samples_per_class,
-            class_to_idx=dataset.class_to_idx,
-            targets=targets
-        )
+    # total_length = len(dataset)
+    # train_size = int(0.8 * total_length)
+    # val_size = int(0.10 * total_length)
+    # test_size = total_length - train_size - val_size
+    # train_set, val_set, test_set = random_split(dataset, [train_size, val_size, test_size])
 
-        # total_length = len(dataset)
-        # train_size = int(0.8 * total_length)
-        # val_size = int(0.10 * total_length)
-        # test_size = total_length - train_size - val_size
-        # train_set, val_set, test_set = random_split(dataset, [train_size, val_size, test_size])
+    data_loader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)  # shuffle=True,
+    print(f"Dataset details: {count_classes(data_loader)}")
 
-        data_loader = DataLoader(dataset, batch_size=batch_size,  sampler=sampler)   #shuffle=True,
-        print(f"Dataset details: {count_classes(data_loader)}")
+    # validation_loader = DataLoader(val_set, batch_size=batch_size)
+    # test_loader = DataLoader(test_set, batch_size=batch_size)
 
-        # validation_loader = DataLoader(val_set, batch_size=batch_size)
-        # test_loader = DataLoader(test_set, batch_size=batch_size)
+    return num_classes, data_loader, dataset.classes
 
-        return num_classes,data_loader
 
 def set_seed():
     # os.CUBLAS_WORKSPACE_CONFIG="4096:8"

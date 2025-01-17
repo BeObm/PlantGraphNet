@@ -1,117 +1,67 @@
-import torch
+import argparse
+import pandas as pd
 import torch.nn as nn
-import torch.optim as optim
-import torchvision.models as models
-
 from model import CNNModel
-from utils import *
 import os
-from tqdm import tqdm
+import torch
+import torch.optim as optim
+from Baselines.baseline_models import baseline_model
+from train_test_model import train_model, test_model
+from datetime import datetime
+from utils import *
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print("device:", torch.cuda.is_available())
-# device = torch.device('cpu')
-
-set_seed()
-print("Loading dataset...")
-num_classes, train_loader = load_data(dataset_dir="dataset/images/train", batch_size=32)
-_, test_loader = load_data(dataset_dir="dataset/images/val", batch_size=32)
-
-model = CNNModel()
+print("device:", device)
 
 
-model = model.to(device)
+if __name__ == "__main__":
+    set_seed()
+    parser = argparse.ArgumentParser()
 
-# Define loss function and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+    parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="baseline",
+                        choices=["baseline", "Our_CNN_Model"])
+    parser.add_argument("--model_name", help="Model name", default="GoogleNet",
+                        choices=["VGG19", "VGG16", "ResNet50", "AlexNet", "MobileNetV2", "GoogleNet"])
+    parser.add_argument("--dataset_size", type=int, default=10, help="number  of images to use for training per class, 0 means all")
+    parser.add_argument("--hidden_dim", default=128, type=int, help="hidden_dim")
+    parser.add_argument("--num_epochs", type=int, default=2, help="num_epochs")
+    parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
+    parser.add_argument("--learning_rate", type=float, default=0.005, help="learning_rate")
+    parser.add_argument("--wd", type=float, default=0.0001, help="wd")
+    parser.add_argument("--criterion", default="CrossEntropy", help="criterion")
 
-# Check if a saved model exists and load it
-saved_model_path = 'best_model.pth'
+    args = parser.parse_args()
+    args.result_dir = f"results/{args.model_name}"
+    os.makedirs(args.result_dir, exist_ok=True)
 
-if os.path.isfile(saved_model_path):
-    try:
-        model.load_state_dict(torch.load(saved_model_path))
-        print(f"Loaded saved model from {saved_model_path}")
-    except:
-        pass
-# Training loop
-num_epochs =100
-best_validation_accuracy = 0.0
-best_model_state = model.state_dict()
-# Lists to store loss and accuracy values for plotting
-train_loss_values = []
-validation_loss_values = []
-train_accuracy_values = []
-validation_accuracy_values = []
-print("Trainning Model...")
-
-for epoch in tqdm(range(num_epochs)):
-    model.train()
-    running_loss = 0.0
-
-    for inputs, labels in train_loader:
-        inputs, labels = inputs.to(device), labels.to(device)
-        optimizer.zero_grad()
-        outputs = model(inputs)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        running_loss += loss.item()
-
-    # Compute and store training loss and accuracy
-    train_loss = running_loss / len(train_loader)
-    train_loss_values.append(train_loss)
-    train_accuracy = 0
-    total = 0
-    correct = 0
-    model.eval()
-
-    with torch.no_grad():
-        for inputs, labels in train_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+    num_classes, train_loader, class_names = load_data(dataset_dir="dataset/images/train", batch_size=args.batch_size, num_samples_per_class=args.dataset_size)
+    _, test_loader, _ = load_data(dataset_dir="dataset/images/val", batch_size=args.batch_size,num_samples_per_class=args.dataset_size)
 
 
+    start_time = datetime.now()
+    if args.type_model == "baseline":
+        model = baseline_model(model_name=args.model_name, num_classes=num_classes)
+    elif args.type_model == "Our_CNN_Model":
+        model = CNNModel()
+        args.model_name = "Our_CNN_Model"
 
-    train_accuracy = 100 * correct / total
-    train_accuracy_values.append(train_accuracy)
+    saved_model_path = f'{args.model_name}_weight.pth'
+    if os.path.isfile(saved_model_path):
+        try:
+            model.load_state_dict(torch.load(saved_model_path))
+            print(f"Loaded saved model from {saved_model_path}")
+        except:
+            pass
+    model = model.to(device)
 
-    print(f'Epoch {epoch + 1}, Train Loss: {train_loss}, Train Accuracy: {train_accuracy}%')
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=0.0001)
+    train_model(model, train_loader, test_loader, criterion, optimizer, args=args)
+    end_time = datetime.now()
+    cl_report = test_model(model, test_loader, args.model_name, class_names)
 
-    # Validation
-    correct = 0
-    total = 0
+    cr = pd.DataFrame(cl_report).transpose()
+    cr.to_excel(f"{args.result_dir}/result_for_{args.model_name}.xlsx")
 
-
-
-# Testing
-# Testing phase
-model.eval()
-y_pred = []
-y_true = []
-
-with torch.no_grad():
-    for inputs, labels in test_loader:
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs = model(inputs)
-        _, predicted = torch.max(outputs.data, 1)
-        y_pred.append(predicted.cpu())  # Append tensors to list after moving to CPU
-        y_true.append(labels.cpu())     # Append tensors to list after moving to CPU
-
-# Concatenate the list of tensors into a single tensor for y_pred and y_true
-y_pred = torch.cat(y_pred)
-y_true = torch.cat(y_true)
-
-# If compute_metrics function accepts PyTorch tensors, then you can directly pass them
-metrics = compute_metrics(y_true=y_true, y_pred=y_pred)
-for metric, value in metrics.items():
-    print(f"{metric} = {value}")
-
-with open("baseline_result.txt", 'a') as baseline:
-    baseline.write(f"{'+'*12}Model = AlexNet {'+'*12}\n")
-    for metric, value in metrics.items():
-        baseline.write(f"{metric} = {value}")
-    baseline.write("=="*25 + "\n")
+    print(f"Model Classification report for {args.model_name} \n ")
+    print(cr)
+    print(f"Time taken to train the model: {end_time - start_time}")
