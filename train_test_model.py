@@ -6,11 +6,10 @@ from utils import *
 import os
 from tqdm import tqdm
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def train_model(model, train_loader, test_loader, criterion, optimizer, args):
-
+    device = args.device
     # Lists to store loss and accuracy values for plotting
     train_loss_values = []
     train_accuracy_values = []
@@ -78,7 +77,7 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, args):
     return model
 
 def test_model(model, test_loader, class_names,args):
-
+    device = args.device
     model.eval()
     y_pred = []
     y_true = []

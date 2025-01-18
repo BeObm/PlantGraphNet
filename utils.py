@@ -17,18 +17,20 @@ config = ConfigParser()
 RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
 project_root_dir = os.path.abspath(os.getcwd())
 
-def create_config_file(dataset_name,type_graph):
-    configs_folder = osp.join(project_root_dir, f'results/{dataset_name}/{RunCode}')
+def create_config_file(type_dataset,type_graph):
+    configs_folder = osp.join(project_root_dir, f'results/{type_dataset}/{RunCode}')
     os.makedirs(configs_folder, exist_ok=True)
     config_filename = f"{configs_folder}/ConfigFile_{RunCode}.ini"
     graph_filename = f"{project_root_dir}/dataset/graphs/{type_graph}"
     os.makedirs(graph_filename, exist_ok=True)
+    os.makedirs(f"{graph_filename}/{type_dataset}", exist_ok=True)
     config["param"] = {
         'config_filename': config_filename,
-        "dataset_name": dataset_name,
+        "type_dataset": type_dataset,
         'type_graph': type_graph,
-        "image_dataset_root": f"{project_root_dir}/dataset/images/{dataset_name}",
-        "graph_dataset_name": f"{graph_filename}/{dataset_name}.pt",
+        "graph_filename":graph_filename,
+        "image_dataset_root": f"{project_root_dir}/dataset/images/{type_dataset}",
+        "graph_dataset_folder": f"{graph_filename}/{type_dataset}",
         "result_folder": f"{configs_folder}",
         "sigma":1.0,
         "threshold":0.01,
@@ -78,13 +80,7 @@ def plot_image_with_nodes(img_path, data, output_folder):
     plt.savefig(output_path, bbox_inches='tight')
     plt.close()
 
-def transforme():
-    return transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(10),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+
 
 def save_plots(train_losses, metrics_dict):
     plt.figure(figsize=(12, 4))
@@ -317,3 +313,21 @@ def save_multiple_time_to_excel_with_date(cr, args):
             cr.to_excel(writer, sheet_name=current_date)
     else:
         cr.to_excel(output_file_path)
+
+def Load_graphdata(dataset_source_path,args):
+    set_seed()
+    graph_list=[]
+    assert os.path.isdir(dataset_source_path), "The provided dataset_source_path is not a valid directory."
+    for file_name in os.listdir(dataset_source_path):
+        data=torch.load(os.path.join(dataset_source_path,file_name))
+        data.y = data.y.view(-1,1)
+        graph_list.append(data)
+
+    if args.dataset=="train":
+        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=True)
+    else:
+        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=False)
+
+    feat_size=data.x.shape[1]
+
+    return dataset_loader,feat_size

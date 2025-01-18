@@ -1,16 +1,16 @@
 import argparse
 import pandas as pd
+import os
+
 import torch.nn as nn
 from model import CNNModel
-import os
+
 import torch
 import torch.optim as optim
 from Baselines.baseline_models import baseline_model
 from train_test_model import train_model, test_model
 from datetime import datetime
 from utils import *
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print("device:", device)
 
 
 if __name__ == "__main__":
@@ -26,12 +26,14 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, default=0.005, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.0001, help="wd")
     parser.add_argument("--criterion", default="CrossEntropy", help="criterion")
+    parser.add_argument("--gpu_idx", default=1, help="GPU  num")
 
     args = parser.parse_args()
 
-
+    args.device = torch.device(f'cuda:{args.gpu_idx}' if torch.cuda.is_available() else 'cpu')
+    print("device:", args.device)
     num_classes, train_loader, class_names = load_data(dataset_dir="dataset/images/train", batch_size=args.batch_size, num_samples_per_class=args.dataset_size,type_data="train")
-    _, test_loader, _ = load_data(dataset_dir="dataset/images/val", batch_size=args.batch_size,num_samples_per_class=args.dataset_size,type_data="test")
+    _, test_loader, _ = load_data(dataset_dir="dataset/images/test", batch_size=args.batch_size,num_samples_per_class=args.dataset_size,type_data="test")
 
 
     start_time = datetime.now()
@@ -54,7 +56,7 @@ if __name__ == "__main__":
             print(f"Loaded saved model from {saved_model_path}")
         except:
             pass
-    model = model.to(device)
+    model = model.to(args.device)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=0.0001)

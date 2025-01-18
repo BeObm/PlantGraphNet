@@ -2,9 +2,10 @@ import torch
 from torch_geometric.data import Data
 from tqdm import tqdm
 import os
+from PIL import Image
+
 from utils import *
 import torch
-import torchvision.transforms as transform
 import torchvision.models as models
 from PIL import Image
 import numpy as np
@@ -12,40 +13,49 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 
-
-
 # Build the PyTorch Geometric dataset using grid-based approach
-def build_dataset(dataset_path, output_path, nb_per_class=200):
+def build_dataset(dataset_path, nb_per_class=200,apply_transform=True):
     dataset = []
     class_folders = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
+    graph_dataset_dir = f"{config['param']['graph_dataset_folder']}"
 
-    for label, class_folder in enumerate(class_folders):
-        pbar = tqdm(len(class_folders))
-        pbar.set_description(f"Contructing graph data for Class #{label}: {class_folder} ... ")
+
+    for label, class_folder in tqdm(enumerate(class_folders)):
+        print(f"Contructing graph data for Class #{label}: {class_folder} ... \n ")
+
         class_path = os.path.join(dataset_path, class_folder)
         if nb_per_class==0:
           image_files = shuffle_dataset([f for f in os.listdir(class_path) if f.lower().endswith(('.png', '.jpg', '.jpeg','.tiff'))])
         else:
           image_files = shuffle_dataset([f for f in os.listdir(class_path) if f.lower().endswith(('.png', '.jpg', '.jpeg','.tiff'))])[:nb_per_class]
         a = 1
-        for img_file in image_files:
+        for idx,img_file in enumerate(image_files):
             img_path = os.path.join(class_path, img_file)
-            data = image_to_graph(img_path, label)
-            dataset.append(data)
-            if a < 3:
-                plot_image_with_nodes(img_path, data, f"{config['param']['result_folder']}/ImageAndGraph/{label}/{a}")
-                a += 1
-        pbar.set_description(f"Contructed {len(image_files)} graphs  for Class #{label}: {class_folder} ")
-        pbar.update(1)
-    torch.save(dataset, output_path)
+            image_to_graph(img_path=img_path,
+                           label=label,
+                           apply_transforms=apply_transform,
+                           output_path=f"{graph_dataset_dir}/{label}_{idx}.pt")
+
+        print(f"Contructed {len(image_files)} graphs  for Class #{label}: {class_folder} \n")
 
 
-def image_to_graph(img_path, label):
-    img = io.imread(img_path)
-    img_tensor = transforms.ToTensor()(img)
-    x, edge_index = get_node_features_and_edge_list(img_tensor)
+
+
+def image_to_graph(img_path, label,apply_transforms=True, output_path="data/graph_data.pt"):
+    img = Image.open(img_path).convert('RGB')
+
+    if apply_transforms:
+        transform_pipeline= transform(type_data="train")
+        img = transform_pipeline(img)
+    else:
+        transform_pipeline = transform(type_data="test")
+        img = transform_pipeline(img)
+        # img = torch.from_numpy(np.transpose(img, (2, 0, 1))).to(dtype=torch.float)
+    x, edge_index = get_node_features_and_edge_list(img)
     y = torch.tensor([label], dtype=torch.long)
-    return Data(x=x, edge_index=edge_index, y=y)
+    Data(x=x, edge_index=edge_index, y=y, image_features=img.view(-1, 3))
+    torch.save(Data(x=x, edge_index=edge_index, y=y, image_features=img.view(-1, 3)), output_path)
+
 
 def get_node_features_and_edge_list(image):
     """
@@ -57,8 +67,9 @@ def get_node_features_and_edge_list(image):
         edges (list of tuple): List of edges, where each edge is a tuple (node1, node2).
         node_features (torch.Tensor): Node features of the graph of size (num_pixels, channels).
     """
+
     image = validate_image(image)
-    height, width, channels = image.shape
+    channels, height, width = image.shape
 
     # Flatten the image into a list of nodes
     node_features = image.view(-1, channels)  # Shape: (num_pixels, channels)
@@ -70,10 +81,7 @@ def get_node_features_and_edge_list(image):
 
 
 def validate_image(image):
-    """Validate the input image."""
-    if isinstance(image, np.ndarray):
-        # Convert numpy array to torch tensor if needed
-        image = torch.from_numpy(image)
+
     if image.dim() != 3:
         raise ValueError("Input image must have 3 dimensions: (height, width, channels)")
     return image
@@ -100,7 +108,7 @@ def compute_edges(height, width):
                 if 0 <= ni < height and 0 <= nj < width:  # Ensure within bounds
                     neighbor_index = pixel_to_index(ni, nj, width)
                     edges.append((current_index, neighbor_index))
-    return edges
+    return torch.tensor(edges,dtype=torch.long)
 
 
 

@@ -26,12 +26,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     create_config_file(args.dataset,args.type_graph)
 
-    data = torch.load(config['param']["graph_dataset_name"])
-    test_data = torch.load("dataset/graphs/val.pt")
-    dataset= shuffle_dataset(data)
+    train_loader,feat_size= Load_graphdata(config['param']["graph_dataset_folder"],args=args)
+    test_loader,_ =Load_graphdata(config['param']["graph_dataset_folder"],args=args)
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    input_dim = dataset[0].x.shape[1]
+    input_dim = feat_size
     hidden_dim = args.hidden_dim
     output_dim = 10
     num_epochs = args.num_epochs
@@ -39,9 +39,6 @@ if __name__ == "__main__":
     print(f"Feature size = {input_dim}|  num_class = {output_dim} ")
 
     model = GNNModel(input_dim, hidden_dim, output_dim, args.Conv1, args.Conv2).to(device)
-
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate,weight_decay=args.wd)
