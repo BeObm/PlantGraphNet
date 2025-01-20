@@ -324,7 +324,6 @@ def Load_graphdata(dataset_source_path,args):
 
         data=torch.load(os.path.join(dataset_source_path,file_name))
         data.y = data.y.long()
-        data.image_features=None
         graph_list.append(data)
 
     print("The dataset has been loaded. its contains: ",len(graph_list)," graphs.")

@@ -22,6 +22,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     create_config_file(args.dataset,args.type_graph)
 
+
+
+    print(f'the path is {config["param"]["graph_dataset_folder"]}')
     train_loader,feat_size= Load_graphdata(config['param']["graph_dataset_folder"],args=args)
     test_loader,_ =Load_graphdata(config['param']["graph_dataset_folder"],args=args)
 

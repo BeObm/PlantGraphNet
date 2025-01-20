@@ -53,8 +53,9 @@ def image_to_graph(img_path, label,apply_transforms=True, output_path="data/grap
         # img = torch.from_numpy(np.transpose(img, (2, 0, 1))).to(dtype=torch.float)
     x, edge_index = get_node_features_and_edge_list(img)
     y = torch.tensor([label], dtype=torch.long)
-    torch.save(Data(x=x, edge_index=edge_index, y=y, image_features=img), output_path)
-    print(Data(x=x, edge_index=edge_index, y=y, image_features=img))
+    data=Data(x=x, edge_index=edge_index, y=y, image_features=img.unsqueeze(dim=0))
+    print(data)
+    torch.save(data, output_path)
 
 def get_node_features_and_edge_list(image):
     """

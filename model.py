@@ -65,6 +65,113 @@ class CNNModel(nn.Module):
 
 
 
+
+
+class GNNModel2(torch.nn.Module):
+    GRAPH_HIDDEN_DIM_MULTIPLIER = 2  # Multiplier for hidden dimension adjustment
+
+    def __init__(self, num_node_features, hidden_dim, num_classes, GraphConvLayer1, GraphConvLayer2,
+                 hidden_dim_multiplier=GRAPH_HIDDEN_DIM_MULTIPLIER):
+        """
+        A neural network that processes graph features and image features,
+        and effectively combines the two into a final classification output.
+
+        Args:
+            num_node_features (int): Number of features in input graph nodes.
+            hidden_dim (int): Latent dimensionality for intermediate features.
+            num_classes (int): Number of output classes for classification.
+            GraphConvLayer1 (nn.Module): The first graph convolution layer type.
+            GraphConvLayer2 (nn.Module): The second graph convolution layer type.
+            hidden_dim_multiplier (int, optional): Multiplier for expanding the hidden-dimension size.
+        """
+        super(GNNModel, self).__init__()
+
+        # Initialize graph feature layers
+        self.graph_feature_extractor = self._create_graph_feature_extractor(
+            num_node_features, hidden_dim, GraphConvLayer1, GraphConvLayer2, hidden_dim_multiplier
+        )
+
+        # Initialize image feature processing layers
+        self.image_feature_extractor = self._create_image_feature_extractor(hidden_dim)
+
+        # Fusion and classification layers
+        self.fusion_layer = torch.nn.Linear(hidden_dim * 2, num_classes)  # Combine graph + image features
+        self.dropout = torch.nn.Dropout(p=0.5)
+
+    def _create_graph_feature_extractor(self, num_node_features, hidden_dim, GraphConvLayer1, GraphConvLayer2,
+                                        hidden_dim_multiplier):
+        """
+        Creates the graph feature extraction block with convolutions, normalizations, and activations.
+        """
+        hidden_dim_adjusted = hidden_dim * hidden_dim_multiplier
+
+        return torch.nn.Sequential(
+            # First graph convolution layer
+            GraphConvLayer1(num_node_features, hidden_dim_adjusted),
+            torch.nn.BatchNorm1d(hidden_dim_adjusted),  # Graph normalization
+            torch.nn.ReLU(),
+
+            # Second graph convolution layer
+            GraphConvLayer2(hidden_dim_adjusted, hidden_dim),
+            torch.nn.BatchNorm1d(hidden_dim),  # Graph normalization
+            torch.nn.ReLU(),
+        )
+
+    def _create_image_feature_extractor(self, hidden_dim):
+        """
+        Creates the image feature extraction block with convolutions and pooling.
+        """
+        return torch.nn.Sequential(
+            # Convolutional layers for image feature extraction
+            torch.nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1),
+            torch.nn.ReLU(),
+            torch.nn.BatchNorm2d(16),
+
+            torch.nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1),
+            torch.nn.ReLU(),
+            torch.nn.BatchNorm2d(32),
+
+            torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1),
+            torch.nn.ReLU(),
+            torch.nn.AdaptiveAvgPool2d(1),  # Global pooling to get a fixed-size feature vector
+
+            # Linear layer to map image features to hidden_dim size
+            torch.nn.Flatten(),
+            torch.nn.Linear(64, hidden_dim)
+        )
+
+    def forward(self, data):
+        """
+        Forward pass for the GNNModel.
+
+        Args:
+            data: A dictionary or another structured input containing:
+                  - Graph data (e.g., x, edge_index for graph nodes and edges)
+                  - Image data (e.g., an input tensor for CNN processing)
+
+        Returns:
+            Output logits for classification.
+        """
+        # Process graph data
+        x, edge_index = data.x, data.edge_index  # Graph node features and edges
+        graph_features = self.graph_feature_extractor(x)
+
+        # Process image data
+        image_data = data.image  # Image input tensor
+        image_features = self.image_feature_extractor(image_data)
+
+        # Combine graph and image features
+        combined_features = torch.cat((graph_features, image_features), dim=1)
+        combined_features = self.dropout(combined_features)
+
+        # Classification
+        return self.fusion_layer(combined_features)
+
+
+
+
+
+
 class GNNModel(torch.nn.Module):
     NUM_IMAGE_FEATURES = 3  # Original image input feature count
 
@@ -72,12 +179,17 @@ class GNNModel(torch.nn.Module):
         super(GNNModel, self).__init__()
 
         # Graph feature extraction (upgraded to more advanced GNN layers like GAT or GIN)
+
         self.graph_conv1 = Conv1(num_node_features, hidden_dim * 2)
+        self.batch_norm1= torch.nn.BatchNorm1d(hidden_dim*2)
+        self.act=torch.nn.ReLU()
+        #
         self.graph_conv2 = Conv2(hidden_dim * 2, hidden_dim)
+        self.batch_norm2= torch.nn.BatchNorm1d(hidden_dim)
 
         # Process image features with CNN (multiple convolution layers)
         self.img_cnn = torch.nn.Sequential(
-            torch.nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1),
+            torch.nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1, padding=1),
             torch.nn.ReLU(),
             torch.nn.BatchNorm2d(16),
             torch.nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1),
@@ -101,14 +213,21 @@ class GNNModel(torch.nn.Module):
         node_features = data.x
         edge_index = data.edge_index.view(2, -1)
         batch = data.batch
+        image_features=data.image_features
+        # print(f"node_features: {node_features.shape} edge_index: {edge_index.shape} batch: {batch.shape} image_features: {image_features.shape}")
+        node_features = self.graph_conv1(node_features, edge_index)
+        node_features = self.batch_norm1(node_features)
+        node_features = self.act(node_features)
 
-        node_features = relu(self.graph_conv1(node_features, edge_index))
-        node_features = relu(self.graph_conv2(node_features, edge_index))
+        node_features = self.graph_conv2(node_features, edge_index)
+        node_features = self.batch_norm2(node_features)
+        node_features = self.act(node_features)
+
         node_features = global_add_pool(node_features, batch)  # Global pooling for graph features
         node_features = self.node_feature_fc(node_features)
 
         # Image feature processing
-        img_features = data.image_features  # Assuming it's a 4D tensor for CNN ([batch, C, H, W])
+        img_features = image_features  # Assuming it's a 4D tensor for CNN ([batch, C, H, W])
         img_features = self.img_cnn(img_features).view(img_features.size(0), -1)  # Flatten after pooling
         img_features = self.img_feature_fc(img_features)
 
