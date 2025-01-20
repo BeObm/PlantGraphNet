@@ -10,8 +10,9 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from skimage import io
 from sklearn.metrics import confusion_matrix
-
 from Baselines.utils import *
+from torch_geometric.loader import DataLoader
+
 
 config = ConfigParser()
 RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
@@ -318,12 +319,18 @@ def Load_graphdata(dataset_source_path,args):
     set_seed()
     graph_list=[]
     assert os.path.isdir(dataset_source_path), "The provided dataset_source_path is not a valid directory."
+
     for file_name in os.listdir(dataset_source_path):
+
         data=torch.load(os.path.join(dataset_source_path,file_name))
-        data.y = data.y.view(-1,1)
+        data.y = data.y.long()
+        data.image_features=None
         graph_list.append(data)
 
+    print("The dataset has been loaded. its contains: ",len(graph_list)," graphs.")
+    print("graph 1:", graph_list[1])
     if args.dataset=="train":
+        print("Batch size is:"," ",args.batch_size)
         dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=True)
     else:
         dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=False)

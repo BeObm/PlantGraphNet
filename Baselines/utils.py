@@ -1,7 +1,7 @@
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import torch
 from torchvision import datasets, transforms
-from torch.utils.data import  DataLoader, SubsetRandomSampler
+from torch.utils.data import  SubsetRandomSampler
 import numpy as np
 import os
 import random

@@ -3,7 +3,6 @@ from torch_geometric.data import Data
 from tqdm import tqdm
 import os
 from PIL import Image
-
 from utils import *
 import torch
 import torchvision.models as models
@@ -50,12 +49,12 @@ def image_to_graph(img_path, label,apply_transforms=True, output_path="data/grap
     else:
         transform_pipeline = transform(type_data="test")
         img = transform_pipeline(img)
+
         # img = torch.from_numpy(np.transpose(img, (2, 0, 1))).to(dtype=torch.float)
     x, edge_index = get_node_features_and_edge_list(img)
     y = torch.tensor([label], dtype=torch.long)
-    Data(x=x, edge_index=edge_index, y=y, image_features=img.view(-1, 3))
-    torch.save(Data(x=x, edge_index=edge_index, y=y, image_features=img.view(-1, 3)), output_path)
-
+    torch.save(Data(x=x, edge_index=edge_index, y=y, image_features=img), output_path)
+    print(Data(x=x, edge_index=edge_index, y=y, image_features=img))
 
 def get_node_features_and_edge_list(image):
     """

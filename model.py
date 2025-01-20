@@ -66,18 +66,76 @@ class CNNModel(nn.Module):
 
 
 class GNNModel(torch.nn.Module):
+    NUM_IMAGE_FEATURES = 3  # Original image input feature count
+
+    def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2):
+        super(GNNModel, self).__init__()
+
+        # Graph feature extraction (upgraded to more advanced GNN layers like GAT or GIN)
+        self.graph_conv1 = Conv1(num_node_features, hidden_dim * 2)
+        self.graph_conv2 = Conv2(hidden_dim * 2, hidden_dim)
+
+        # Process image features with CNN (multiple convolution layers)
+        self.img_cnn = torch.nn.Sequential(
+            torch.nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1),
+            torch.nn.ReLU(),
+            torch.nn.BatchNorm2d(16),
+            torch.nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1),
+            torch.nn.ReLU(),
+            torch.nn.BatchNorm2d(32),
+            torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1),
+            torch.nn.ReLU(),
+            torch.nn.AdaptiveAvgPool2d(1),  # Global pooling to get a fixed-size feature vector
+        )
+
+        # Linear layers for combining graph features and image features
+        self.img_feature_fc = torch.nn.Linear(64, hidden_dim)  # Map image features to hidden dim
+        self.node_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)  # Node feature transformation
+        self.fc = torch.nn.Linear(hidden_dim * 2, num_classes)  # Classifier
+
+        # Dropout to prevent overfitting
+        self.dropout = torch.nn.Dropout(p=0.5)
+
+    def forward(self, data):
+        # Graph feature processing
+        node_features = data.x
+        edge_index = data.edge_index.view(2, -1)
+        batch = data.batch
+
+        node_features = relu(self.graph_conv1(node_features, edge_index))
+        node_features = relu(self.graph_conv2(node_features, edge_index))
+        node_features = global_add_pool(node_features, batch)  # Global pooling for graph features
+        node_features = self.node_feature_fc(node_features)
+
+        # Image feature processing
+        img_features = data.image_features  # Assuming it's a 4D tensor for CNN ([batch, C, H, W])
+        img_features = self.img_cnn(img_features).view(img_features.size(0), -1)  # Flatten after pooling
+        img_features = self.img_feature_fc(img_features)
+
+        # Effective fusion of graph and image features
+        combined_features = torch.cat([node_features, img_features], dim=1)  # Concatenate graph & image features
+        combined_features = self.dropout(combined_features)  # Apply dropout
+        output = self.fc(combined_features)  # Classify
+
+        return log_softmax(output, dim=1)
+
+
+
+
+
+class GNNModel0(torch.nn.Module):
     def __init__(self, num_node_features,hidden_dim, num_classes,Conv1,Conv2):
         super(GNNModel, self).__init__()
         self.conv1 = Conv1(num_node_features, hidden_dim*2)
         self.conv2 = Conv2(hidden_dim*2, hidden_dim)
-        self.mlp_x0 = torch.nn.Linear(50176, hidden_dim)
+        self.mlp_x0 = torch.nn.Linear(3, hidden_dim)
 
         self.mlp_x = torch.nn.Linear(hidden_dim, hidden_dim)
-        self.fc = torch.nn.Linear(hidden_dim*2, num_classes)
+        self.fc = torch.nn.Linear(hidden_dim, num_classes)
 
 
     def forward(self, data):
-        x, edge_index, img_feature,batch = data.x, data.edge_index, data.img_features, data.batch
+        x, edge_index, img_feature,batch = data.x, data.edge_index.view(2,-1), data.image_features, data.batch
 
         x0 = self.mlp_x0(img_feature)
         x = relu(self.conv1(x, edge_index))
@@ -85,10 +143,11 @@ class GNNModel(torch.nn.Module):
         x = global_add_pool(x, batch)  # Global add pooling
         x = self.mlp_x(x)
 
+        print(f" Before cat| x0: {x0.shape} x: {x.shape}")
+        # xt = torch.cat([x0,x],1)
+        # print(f" After cat |x0: {x0.shape} x: {x.shape}, xt: {xt.shape}")
 
-        xt = torch.cat((x0,x),1)
-
-        x = self.fc(xt)
+        x = self.fc(x)
 
         return log_softmax(x, dim=1)
 
@@ -116,7 +175,7 @@ def train(model, train_loader, optimizer, criterion, device):
     accuracy = correct / total
     return avg_loss, accuracy
 
-def test(model, loader):
+def test(model, loader,device):
     model.eval()
     y_true = []
     y_pred = []
@@ -132,5 +191,6 @@ def test(model, loader):
     precision = precision_score(y_true, y_pred, average='weighted')
     recall = recall_score(y_true, y_pred, average='weighted')
     f1 = f1_score(y_true, y_pred, average='weighted')
+
 
     return {'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1': f1}

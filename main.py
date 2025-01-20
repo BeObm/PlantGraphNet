@@ -1,7 +1,3 @@
-from tqdm import tqdm
-import argparse
-from torch_geometric.nn import GraphConv
-from model import *
 import argparse
 from datetime import datetime
 from torch_geometric.nn import GraphConv
@@ -17,7 +13,7 @@ if __name__ == "__main__":
     parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
     parser.add_argument("--hidden_dim", default=128, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
-    parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
+    parser.add_argument("--batch_size", type=int, default=8, help="batch_size")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
     parser.add_argument("--Conv1", default=GraphConv, help="Conv1")
@@ -36,7 +32,6 @@ if __name__ == "__main__":
     output_dim = 10
     num_epochs = args.num_epochs
     batch_size = args.batch_size
-    print(f"Feature size = {input_dim}|  num_class = {output_dim} ")
 
     model = GNNModel(input_dim, hidden_dim, output_dim, args.Conv1, args.Conv2).to(device)
 
@@ -48,7 +43,7 @@ if __name__ == "__main__":
     train_losses = []
     train_accuracies = []
     for epoch in range(num_epochs):
-        loss, accuracy = train(model, train_loader, optimizer, criterion)
+        loss, accuracy = train(model, train_loader, optimizer, criterion,device=device)
         train_losses.append(loss)
         train_accuracies.append(accuracy)
         if loss <= best_loss:
@@ -57,7 +52,7 @@ if __name__ == "__main__":
         pbar.write(f'Epoch [{epoch}/{num_epochs}]: Loss: {round(loss, 5)}')
         pbar.update(1)
     plot_and_save_training_performance(num_epochs, train_losses, train_accuracies)
-    test_metrics = test(model, test_loader)
+    test_metrics = test(model, test_loader,device=device)
     print("Test Metrics:")
     for metric, value in test_metrics.items():
         add_config("results", metric, value)
