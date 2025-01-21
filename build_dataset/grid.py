@@ -32,6 +32,7 @@ def build_dataset(dataset_path, nb_per_class=200,apply_transform=True):
             img_path = os.path.join(class_path, img_file)
             image_to_graph(img_path=img_path,
                            label=label,
+                           label_name=class_folder,
                            apply_transforms=apply_transform,
                            output_path=f"{graph_dataset_dir}/{label}_{idx}.pt")
 
@@ -40,7 +41,7 @@ def build_dataset(dataset_path, nb_per_class=200,apply_transform=True):
 
 
 
-def image_to_graph(img_path, label,apply_transforms=True, output_path="data/graph_data.pt"):
+def image_to_graph(img_path, label,label_name,apply_transforms=True, output_path="data/graph_data.pt"):
     img = Image.open(img_path).convert('RGB')
 
     if apply_transforms:
@@ -53,7 +54,7 @@ def image_to_graph(img_path, label,apply_transforms=True, output_path="data/grap
         # img = torch.from_numpy(np.transpose(img, (2, 0, 1))).to(dtype=torch.float)
     x, edge_index = get_node_features_and_edge_list(img)
     y = torch.tensor([label], dtype=torch.long)
-    data=Data(x=x, edge_index=edge_index, y=y, image_features=img.unsqueeze(dim=0))
+    data=Data(x=x, edge_index=edge_index, y=y, image_features=img.unsqueeze(dim=0),label_name=label_name)
     print(data)
     torch.save(data, output_path)
 

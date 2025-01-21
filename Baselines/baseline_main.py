@@ -29,7 +29,7 @@ if __name__ == "__main__":
     os.makedirs(args.result_dir, exist_ok=True)
     
     num_classes, train_loader, class_names = load_data(dataset_dir="dataset/images/train", batch_size=args.batch_size)
-    _, test_loader, _ = load_data(dataset_dir="dataset/images/val", batch_size=args.batch_size)
+    _, test_loader, _ = load_data(dataset_dir="dataset/images/test", batch_size=args.batch_size)
     
     if args.type_model=="baseline":
                  model = baseline_model(model_name=args.model_name,num_classes=num_classes)

@@ -49,30 +49,26 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, args):
         train_accuracy = 100 * correct / total
         train_accuracy_values.append(train_accuracy)
 
-        total = 0
-        correct = 0
-        with torch.no_grad():
-            for inputs, labels in test_loader:
-                inputs, labels = inputs.to(device), labels.to(device)
-                outputs = model(inputs)
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-        test_accuracy = 100 * correct / total
-        test_accuracy_values_during_training.append(test_accuracy)
+        # total = 0
+        # correct = 0
+        # with torch.no_grad():
+        #     for inputs, labels in test_loader:
+        #         inputs, labels = inputs.to(device), labels.to(device)
+        #         outputs = model(inputs)
+        #         _, predicted = torch.max(outputs.data, 1)
+        #         total += labels.size(0)
+        #         correct += (predicted == labels).sum().item()
+        # test_accuracy = 100 * correct / total
+        # test_accuracy_values_during_training.append(test_accuracy)
         # print(f"total: {total} correct: {correct} test_accuracy: {test_accuracy} train_accuracy: {train_accuracy} train_loss: {train_loss} \n")
-        print(f' <<{"="*8}  Epoch {epoch + 1}| Train Loss: {train_loss} | Train Accuracy: {train_accuracy}%  | Test ACC: {test_accuracy} {"="*8}>> \n ')
+        print(f' <<{"="*8}  Epoch {epoch + 1}| Train Loss: {train_loss} | Train Accuracy: {train_accuracy}%   {"="*8}>> \n ')
 
 
-    # Save metrics and plots
-    save_training_details(
-        train_loss=train_loss_values,
-        train_acc=train_accuracy_values,
-        test_acc=test_accuracy_values_during_training,
-        txt_file=f"{args.result_dir}/training_metrics.txt",
-        pdf_file=f"{args.result_dir}/training_plots.pdf",
-        model_name=args.model_name
-    )
+    # Save training stats
+    plot_and_save_training_performance(num_epochs=args.num_epochs,
+                                       losses=train_loss_values,
+                                       accuracies=train_accuracy_values,
+                                       folder_name=args.result_dir)
 
     return model
 

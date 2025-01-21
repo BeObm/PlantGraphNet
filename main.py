@@ -1,6 +1,6 @@
 import argparse
 from datetime import datetime
-from torch_geometric.nn import GraphConv
+from torch_geometric.nn import GENConv, GATConv
 from tqdm import tqdm
 
 from model import *
@@ -9,26 +9,25 @@ if __name__ == "__main__":
     set_seed()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset", help="Dataset name", default="train")
+    parser.add_argument("--dataset", help="Dataset name", default="train0")
     parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
-    parser.add_argument("--hidden_dim", default=128, type=int, help="hidden_dim")
+    parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=8, help="batch_size")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
-    parser.add_argument("--Conv1", default=GraphConv, help="Conv1")
-    parser.add_argument("--Conv2", default=GraphConv, help="Conv2")
+    parser.add_argument("--Conv1", default=GENConv, help="Conv1")
+    parser.add_argument("--Conv2", default=GATConv, help="Conv2")
 
     args = parser.parse_args()
     create_config_file(args.dataset,args.type_graph)
 
+    start_time=datetime.now()
 
+    train_loader,feat_size,class_names= Load_graphdata(config['param']["graph_dataset_folder"],args=args)
+    test_loader,_,_ =Load_graphdata(config['param']["graph_dataset_folder"],args=args)
 
-    print(f'the path is {config["param"]["graph_dataset_folder"]}')
-    train_loader,feat_size= Load_graphdata(config['param']["graph_dataset_folder"],args=args)
-    test_loader,_ =Load_graphdata(config['param']["graph_dataset_folder"],args=args)
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"The labels are {class_names}")
 
     input_dim = feat_size
     hidden_dim = args.hidden_dim
@@ -54,10 +53,20 @@ if __name__ == "__main__":
             pbar.set_description(f"Training model.|Best loss={round(best_loss, 5)}")
         pbar.write(f'Epoch [{epoch}/{num_epochs}]: Loss: {round(loss, 5)}')
         pbar.update(1)
-    plot_and_save_training_performance(num_epochs, train_losses, train_accuracies)
-    test_metrics = test(model, test_loader,device=device)
-    print("Test Metrics:")
-    for metric, value in test_metrics.items():
-        add_config("results", metric, value)
-        print(f"{metric}: {value}")
+    print(f"Time taken to train the model: { datetime.now() - start_time}")
 
+    plot_and_save_training_performance(num_epochs=num_epochs,
+                                       losses=train_losses,
+                                       accuracies=train_accuracies,
+                                       folder_name=config['param']['result_folder'])
+
+    cls_report = test(model=model,
+                        loader=test_loader,
+                        device=device,
+                        class_names=class_names)
+
+    cr = pd.DataFrame(cls_report).transpose()
+    cr.to_excel( f"{config['param']['result_folder']}/result_for_GNN_Model.xlsx")
+
+    print(f"Model Classification report for GNN model \n ")
+    print(cr)

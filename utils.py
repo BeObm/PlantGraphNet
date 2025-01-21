@@ -3,16 +3,17 @@ import csv
 import os.path as osp
 from configparser import ConfigParser
 from datetime import datetime
-import seaborn as sns
-from openpyxl import load_workbook
-import pandas as pd
+
 import matplotlib.pyplot as plt
 import networkx as nx
+import pandas as pd
+import seaborn as sns
+from openpyxl import load_workbook
 from skimage import io
 from sklearn.metrics import confusion_matrix
-from Baselines.utils import *
-from torch_geometric.loader import DataLoader
+from torch_geometric.loader import DataLoader, ImbalancedSampler
 
+from Baselines.utils import *
 
 config = ConfigParser()
 RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
@@ -112,9 +113,11 @@ def save_plots(train_losses, metrics_dict):
     training_df = pd.DataFrame(training_data)
     training_df.to_csv(f"{config['param']['result_folder']}/training_evolution.csv", index=False)
 
-def plot_and_save_training_performance(num_epochs, losses, accuracies):
-    filename = f"{config['param']['result_folder']}/training_performance.csv"
-    with open(filename, mode='w', newline='') as file:
+
+def plot_and_save_training_performance(num_epochs, losses, accuracies, folder_name):
+    csv_file=f"{folder_name}/training_evolution.csv"
+    pdf_file=f"{folder_name}/training_performance.pdf"
+    with open(csv_file, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Epoch', 'Loss', 'Accuracy'])
         epochs = range(1,num_epochs+1)
@@ -135,9 +138,12 @@ def plot_and_save_training_performance(num_epochs, losses, accuracies):
     plt.xlabel('Epochs')
     plt.ylabel('Accuracy')
     plt.title('Training Accuracy')
-
     plt.tight_layout()
+
+    plt.savefig(pdf_file, format='pdf')
     plt.show()
+
+
 def add_config(section_, key_, value_, ):
     if section_ not in list(config.sections()):
         config.add_section(section_)
@@ -318,22 +324,28 @@ def save_multiple_time_to_excel_with_date(cr, args):
 def Load_graphdata(dataset_source_path,args):
     set_seed()
     graph_list=[]
+    label_dict={}
     assert os.path.isdir(dataset_source_path), "The provided dataset_source_path is not a valid directory."
 
     for file_name in os.listdir(dataset_source_path):
 
         data=torch.load(os.path.join(dataset_source_path,file_name))
         data.y = data.y.long()
+        if data.y.item() not in label_dict.keys():
+            label_dict[data.y.item()] = data.label_name
         graph_list.append(data)
 
+    label_dict = dict(sorted(label_dict.items(), key=lambda item: int(item[0])))
+    print("list of label names", label_dict)
     print("The dataset has been loaded. its contains: ",len(graph_list)," graphs.")
     print("graph 1:", graph_list[1])
+    sampler=ImbalancedSampler(graph_list)
     if args.dataset=="train":
         print("Batch size is:"," ",args.batch_size)
-        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=True)
+        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=True, sampler=sampler,num_workers=os.cpu_count())
     else:
-        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=False)
+        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=False, num_workers=os.cpu_count())
 
     feat_size=data.x.shape[1]
 
-    return dataset_loader,feat_size
+    return dataset_loader,feat_size, list(label_dict.values())

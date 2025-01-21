@@ -4,6 +4,7 @@ from utils import *
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from sklearn.metrics import classification_report
 
 
 class CNNModel(nn.Module):
@@ -294,7 +295,9 @@ def train(model, train_loader, optimizer, criterion, device):
     accuracy = correct / total
     return avg_loss, accuracy
 
-def test(model, loader,device):
+def test(model, loader,device,class_names):
+    filename = f"{config['param']['result_folder']}/confusion_matrix.pdf"
+
     model.eval()
     y_true = []
     y_pred = []
@@ -306,10 +309,13 @@ def test(model, loader,device):
             y_true.extend(data.y.tolist())
             y_pred.extend(pred.tolist())
 
-    accuracy = accuracy_score(y_true, y_pred)
-    precision = precision_score(y_true, y_pred, average='weighted')
-    recall = recall_score(y_true, y_pred, average='weighted')
-    f1 = f1_score(y_true, y_pred, average='weighted')
+    plot_confusion_matrix(y_true=y_true,
+                          y_pred=y_pred,
+                          class_names=class_names,
+                          file_name=filename
+                          )
+    print(f"Confusion Matrix for the GNN model is saved in {filename}")
 
+    cls_report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
 
-    return {'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1': f1}
+    return cls_report
