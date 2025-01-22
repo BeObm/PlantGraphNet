@@ -9,8 +9,10 @@ if __name__ == "__main__":
     set_seed()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset", help="Dataset name", default="train0")
-    parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
+    parser.add_argument("--dataset", help="Dataset name", default="train")
+    parser.add_argument("--type_graph", default="harris", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
+
+    parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=8, help="batch_size")
@@ -18,10 +20,12 @@ if __name__ == "__main__":
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
     parser.add_argument("--Conv1", default=GENConv, help="Conv1")
     parser.add_argument("--Conv2", default=GATConv, help="Conv2")
+    parser.add_argument("--gpu_idx", default=3, help="GPU  num")
 
     args = parser.parse_args()
     create_config_file(args.dataset,args.type_graph)
-
+    device = torch.device(f'cuda:{args.gpu_idx}' if torch.cuda.is_available() else 'cpu')
+    print("device:", device)
     start_time=datetime.now()
 
     train_loader,feat_size,class_names= Load_graphdata(config['param']["graph_dataset_folder"],args=args)
@@ -35,7 +39,13 @@ if __name__ == "__main__":
     num_epochs = args.num_epochs
     batch_size = args.batch_size
 
-    model = GNNModel(input_dim, hidden_dim, output_dim, args.Conv1, args.Conv2).to(device)
+    model = GNNModel(num_node_features=input_dim,
+                     hidden_dim=hidden_dim,
+                     num_classes=output_dim,
+                     Conv1=args.Conv1,
+                     Conv2=args.Conv2,
+                     image_feature=50176,
+                     use_image_feats=args.use_image_feats).to(device)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate,weight_decay=args.wd)

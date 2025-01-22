@@ -83,7 +83,6 @@ def plot_image_with_nodes(img_path, data, output_folder):
     plt.close()
 
 
-
 def save_plots(train_losses, metrics_dict):
     plt.figure(figsize=(12, 4))
 
@@ -330,7 +329,6 @@ def Load_graphdata(dataset_source_path,args):
     for file_name in os.listdir(dataset_source_path):
 
         data=torch.load(os.path.join(dataset_source_path,file_name))
-        data.y = data.y.long()
         if data.y.item() not in label_dict.keys():
             label_dict[data.y.item()] = data.label_name
         graph_list.append(data)

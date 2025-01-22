@@ -46,15 +46,15 @@ def image_to_graph(img_path, label,label_name,apply_transforms=True, output_path
 
     if apply_transforms:
         transform_pipeline= transform(type_data="train")
-        img = transform_pipeline(img)
+        img = transform_pipeline(img).unsqueeze(dim=0)
     else:
         transform_pipeline = transform(type_data="test")
-        img = transform_pipeline(img)
+        img = transform_pipeline(img).unsqueeze(dim=0)
 
         # img = torch.from_numpy(np.transpose(img, (2, 0, 1))).to(dtype=torch.float)
     x, edge_index = get_node_features_and_edge_list(img)
     y = torch.tensor([label], dtype=torch.long)
-    data=Data(x=x, edge_index=edge_index, y=y, image_features=img.unsqueeze(dim=0),label_name=label_name)
+    data=Data(x=x, edge_index=edge_index, y=y, image_features=img,label_name=label_name)
     print(data)
     torch.save(data, output_path)
 
