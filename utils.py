@@ -329,8 +329,8 @@ def Load_graphdata(dataset_source_path,args):
     for file_name in os.listdir(dataset_source_path):
 
         data=torch.load(os.path.join(dataset_source_path,file_name))
-        if data.y.item() not in label_dict.keys():
-            label_dict[data.y.item()] = data.label_name
+        if data.y not in label_dict.keys():
+            label_dict[data.y] = data.label_name
         graph_list.append(data)
 
     label_dict = dict(sorted(label_dict.items(), key=lambda item: int(item[0])))
@@ -340,7 +340,7 @@ def Load_graphdata(dataset_source_path,args):
     sampler=ImbalancedSampler(graph_list)
     if args.dataset=="train":
         print("Batch size is:"," ",args.batch_size)
-        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=True, sampler=sampler,num_workers=os.cpu_count())
+        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler,num_workers=os.cpu_count())
     else:
         dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=False, num_workers=os.cpu_count())
 
