@@ -10,29 +10,141 @@ from sklearn.metrics import classification_report
 class CNNModel(nn.Module):
     def __init__(self, num_classes=10):  # num_classes can be adjusted for your dataset
         super(CNNModel, self).__init__()
-
-        # First Convolutional Block
+        a=1024
+        b=512
+        c=256
+        d=128
+        e=64
+        
+        # 1 Convolutional Block
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
         self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
         self.bn2 = nn.BatchNorm2d(64)
 
-        # Second Convolutional Block
-        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1)
-        self.bn3 = nn.BatchNorm2d(128)
-        self.conv4 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1)
-        self.bn4 = nn.BatchNorm2d(128)
+        # 2 Convolutional Block
+        self.conv3 = nn.Conv2d(in_channels=64, out_channels=a, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(a)
+        self.conv4 = nn.Conv2d(in_channels=a, out_channels=a, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm2d(a)
 
-        # Third Convolutional Block
-        self.conv5 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=1)
+        # 3 Convolutional Block
+        self.conv5 = nn.Conv2d(in_channels=a, out_channels=a, kernel_size=3, stride=1, padding=1)
+        self.bn5 = nn.BatchNorm2d(a)
+        self.conv6 = nn.Conv2d(in_channels=a, out_channels=a, kernel_size=3, stride=1, padding=1)
+        self.bn6 = nn.BatchNorm2d(a)
+
+
+        # 4 Convolutional Block
+        self.conv1 = nn.Conv2d(in_channels=a, out_channels=b, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(b)
+        self.conv2 = nn.Conv2d(in_channels=b, out_channels=b, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(b)
+
+        # 5 Convolutional Block
+        self.conv3 = nn.Conv2d(in_channels=b, out_channels=b, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(b)
+        self.conv4 = nn.Conv2d(in_channels=b, out_channels=b, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm2d(b)
+
+        # 6 Convolutional Block
+        self.conv5 = nn.Conv2d(in_channels=b, out_channels=c, kernel_size=3, stride=1, padding=1)
+        self.bn5 = nn.BatchNorm2d(c)
+        self.conv6 = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=3, stride=1, padding=1)
+        self.bn6 = nn.BatchNorm2d(c)
+
+
+        # 7 Convolutional Block
+        self.conv1 = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(c)
+        self.conv2 = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(c)
+
+        # 8 Convolutional Block
+        self.conv3 = nn.Conv2d(in_channels=c, out_channels=d, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(d)
+        self.conv4 = nn.Conv2d(in_channels=d, out_channels=d, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm2d(d)
+
+        # 9 Convolutional Block
+        self.conv5 = nn.Conv2d(in_channels=d, out_channels=d, kernel_size=3, stride=1, padding=1)
         self.bn5 = nn.BatchNorm2d(256)
-        self.conv6 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1)
+        self.conv6 = nn.Conv2d(in_channels=d, out_channels=d, kernel_size=3, stride=1, padding=1)
+        self.bn6 = nn.BatchNorm2d(d)
+
+
+        # 10 Convolutional Block
+        self.conv1 = nn.Conv2d(in_channels=d, out_channels=e, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(e)
+        self.conv2 = nn.Conv2d(in_channels=e, out_channels=e, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(e)
+
+        # 11 Convolutional Block
+        self.conv3 = nn.Conv2d(in_channels=e, out_channels=e, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(e)
+        self.conv4 = nn.Conv2d(in_channels=e, out_channels=e, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm2d(e)
+
+        # 12 Convolutional Block
+        self.conv5 = nn.Conv2d(in_channels=e, out_channels=a, kernel_size=3, stride=1, padding=1)
+        self.bn5 = nn.BatchNorm2d(a)
+        self.conv6 = nn.Conv2d(in_channels=a, out_channels=a, kernel_size=3, stride=1, padding=1)
+        self.bn6 = nn.BatchNorm2d(a)
+
+
+        # 13 Convolutional Block
+        self.conv1 = nn.Conv2d(in_channels=a, out_channels=b, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(b)
+        self.conv2 = nn.Conv2d(in_channels=b, out_channels=b, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(b)
+
+        # 14 Convolutional Block
+        self.conv3 = nn.Conv2d(in_channels=b, out_channels=b, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(b)
+        self.conv4 = nn.Conv2d(in_channels=b, out_channels=b, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm2d(b)
+
+        # 15 Convolutional Block
+        self.conv5 = nn.Conv2d(in_channels=b, out_channels=s, kernel_size=3, stride=1, padding=1)
+        self.bn5 = nn.BatchNorm2d(c)
+        self.conv6 = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=3, stride=1, padding=1)
+        self.bn6 = nn.BatchNorm2d(c)
+
+        # 16 Convolutional Block
+        self.conv1 = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(c)
+        self.conv2 = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(c)
+
+        # 17 Convolutional Block
+        self.conv3 = nn.Conv2d(in_channels=c, out_channels=d, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.conv4 = nn.Conv2d(in_channels=d, out_channels=d, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm2d(d)
+
+        # 18 Convolutional Block
+        self.conv5 = nn.Conv2d(in_channels=d, out_channels=d, kernel_size=3, stride=1, padding=1)
+        self.bn5 = nn.BatchNorm2d(d)
+        self.conv6 = nn.Conv2d(in_channels=d, out_channels=d, kernel_size=3, stride=1, padding=1)
+        self.bn6 = nn.BatchNorm2d(d)
+
+        # 19 Convolutional Block
+        self.conv3 = nn.Conv2d(in_channels=d, out_channels=e, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(e)
+        self.conv4 = nn.Conv2d(in_channels=e, out_channels=e, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm2d(e)
+
+        # 20 Convolutional Block
+        self.conv5 = nn.Conv2d(in_channels=e, out_channels=e, kernel_size=3, stride=1, padding=1)
+        self.bn5 = nn.BatchNorm2d(e)
+        self.conv6 = nn.Conv2d(in_channels=e, out_channels=256, kernel_size=3, stride=1, padding=1)
         self.bn6 = nn.BatchNorm2d(256)
 
+
         # Fully Connected Layers
-        self.fc1 = nn.Linear(256 * 28 * 28, 1024)  # Assuming input image size is 32x32
-        self.fc2 = nn.Linear(1024, 512)
-        self.fc3 = nn.Linear(512, num_classes)
+        self.fc1 = nn.Linear(256 * 28 * 28, 64)  # Assuming input image size is 32x32
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, num_classes)
 
         # Dropout
         self.dropout = nn.Dropout(0.5)
