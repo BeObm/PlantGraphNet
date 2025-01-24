@@ -15,7 +15,7 @@ class CNNModel(nn.Module):
         c=256
         d=128
         e=64
-        
+
         # 1 Convolutional Block
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
         self.bn1 = nn.BatchNorm2d(64)
