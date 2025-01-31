@@ -4,7 +4,6 @@ import os
 
 import torch.nn as nn
 from model import CNNModel
-
 import torch
 import torch.optim as optim
 from Baselines.baseline_models import baseline_model
@@ -17,21 +16,20 @@ if __name__ == "__main__":
     set_seed()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="Our_CNN_Model", choices=["baseline", "Our_CNN_Model"])
-    parser.add_argument("--model_name", help="Model name", default="MobileNetV2", choices=["VGG19", "VGG16", "ResNet50", "AlexNet", "MobileNetV2", "GoogleNet"])
+    parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="baseline", choices=["baseline", "Our_CNN_Model"])
+    parser.add_argument("--model_name", help="Model name", default="ResNet101", choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet"])
     parser.add_argument("--dataset_size", type=int, default=0, help="number  of images to use for training per class, 0 means all")
     parser.add_argument("--hidden_dim", default=256, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
     parser.add_argument("--learning_rate", type=float, default=0.0001, help="learning_rate")
-    parser.add_argument("--wd", type=float, default=0.001, help="wd")
+    parser.add_argument("--wd", type=float, default=0.005, help="wd")
     parser.add_argument("--criterion", default="CrossEntropy", help="criterion")
-    parser.add_argument("--gpu_idx", default=2, help="GPU  num")
+    parser.add_argument("--gpu_idx", default=1, help="GPU  num")
 
     args = parser.parse_args()
 
     args.device = torch.device(f'cuda:{args.gpu_idx}' if torch.cuda.is_available() else 'cpu')
-    print("device:", args.device)
     num_classes, train_loader, class_names = load_data(dataset_dir="dataset/images/train", batch_size=args.batch_size, num_samples_per_class=args.dataset_size,type_data="train")
     _, test_loader, _ = load_data(dataset_dir="dataset/images/test", batch_size=args.batch_size,num_samples_per_class=args.dataset_size,type_data="test")
 
@@ -42,6 +40,8 @@ if __name__ == "__main__":
     elif args.type_model == "Our_CNN_Model":
         model = CNNModel()
         args.model_name = "New_CNN_Model"
+        
+    print(f"Model: {args.model_name} | device: {args.device}")
 
     if args.dataset_size == 0:
         args.result_dir = f"results/CNN Models/full_dataset/{args.model_name}"

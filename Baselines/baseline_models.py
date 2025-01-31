@@ -10,6 +10,8 @@ def baseline_model(model_name, num_classes):
         return MobileNetV2_Model(num_classes)
     elif model_name == "ResNet50":
         return ResNet50_Model(num_classes)
+    elif model_name == "ResNet101":
+        return ResNet101_Model(num_classes)
     elif model_name == "VGG16":
         return VGG16_Model(num_classes)
     elif model_name == "VGG19":
@@ -72,6 +74,23 @@ def ResNet50_Model(num_classes):
     )
     return model
 
+
+
+def ResNet101_Model(num_classes):
+    model = models.resnet101(pretrained=True)
+    for param in model.parameters():
+        param.requires_grad = False  # Freeze all layers
+
+    model.fc = nn.Sequential(
+        nn.Linear(model.fc.in_features, 512),
+        nn.ReLU(),
+        nn.Dropout(0.5),
+        nn.Linear(512, 256),
+        nn.ReLU(),
+        nn.Dropout(0.5),
+        nn.Linear(256, num_classes)
+    )
+    return model
 
 def VGG16_Model(num_classes):
     model = models.vgg16(pretrained=True)

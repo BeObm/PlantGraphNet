@@ -105,7 +105,7 @@ class CNNModel(nn.Module):
         self.bn4 = nn.BatchNorm2d(b)
 
         # 15 Convolutional Block
-        self.conv5 = nn.Conv2d(in_channels=b, out_channels=s, kernel_size=3, stride=1, padding=1)
+        self.conv5 = nn.Conv2d(in_channels=b, out_channels=c, kernel_size=3, stride=1, padding=1)
         self.bn5 = nn.BatchNorm2d(c)
         self.conv6 = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=3, stride=1, padding=1)
         self.bn6 = nn.BatchNorm2d(c)
