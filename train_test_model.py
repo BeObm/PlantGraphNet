@@ -74,6 +74,7 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, args):
 
 def test_model(model, test_loader, class_names,args):
     device = args.device
+    model = model.to(device)    
     model.eval()
     y_pred = []
     y_true = []

@@ -140,7 +140,6 @@ def plot_and_save_training_performance(num_epochs, losses, accuracies, folder_na
     plt.tight_layout()
 
     plt.savefig(pdf_file, format='pdf')
-    plt.show()
 
 
 def add_config(section_, key_, value_, ):
