@@ -21,8 +21,12 @@ if __name__ == "__main__":
     parser.add_argument("--Conv1", default=GENConv, help="Conv1")
     parser.add_argument("--Conv2", default=GATConv, help="Conv2")
     parser.add_argument("--gpu_idx", default=3, help="GPU  num")
+    parser.add_argument("--connectivity", type=int, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
 
     args = parser.parse_args()
+
+
+    create_config_file(args.dataset, args.type_graph, args.connectivity)
     create_config_file(args.dataset,args.type_graph)
     device = torch.device(f'cuda:{args.gpu_idx}' if torch.cuda.is_available() else 'cpu')
     print("device:", device)
