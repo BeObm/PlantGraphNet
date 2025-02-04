@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parser.add_argument("--apply_transform", default=True, type=bool, help="apply transform", choices=[True, False])
     parser.add_argument("--images_per_class", type=int, default=0, help="number of images to use for training/test per class; 0 means all")
     parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
-    parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
+    parser.add_argument("--connectivity", type=int, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
 
     args = parser.parse_args()
 

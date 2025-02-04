@@ -19,20 +19,20 @@ config = ConfigParser()
 RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
 project_root_dir = os.path.abspath(os.getcwd())
 
-def create_config_file(type_dataset,type_graph,connectivity):
+def create_config_file(type_dataset,type_graph):
     configs_folder = osp.join(project_root_dir, f'results/{type_dataset}/{RunCode}')
     os.makedirs(configs_folder, exist_ok=True)
     config_filename = f"{configs_folder}/ConfigFile_{RunCode}.ini"
     graph_filename = f"{project_root_dir}/dataset/graphs/{type_graph}"
     os.makedirs(graph_filename, exist_ok=True)
-    os.makedirs(f"{graph_filename}/{type_dataset}_{connectivity}", exist_ok=True)
+    os.makedirs(f"{graph_filename}/{type_dataset}", exist_ok=True)
     config["param"] = {
         'config_filename': config_filename,
         "type_dataset": type_dataset,
         'type_graph': type_graph,
         "graph_filename":graph_filename,
         "image_dataset_root": f"{project_root_dir}/dataset/images/{type_dataset}",
-        "graph_dataset_folder": f"{graph_filename}/{type_dataset}_{connectivity}",
+        "graph_dataset_folder": f"{graph_filename}/{type_dataset}",
         "result_folder": f"{configs_folder}",
         "sigma":1.0,
         "threshold":0.01,
@@ -333,6 +333,7 @@ def Load_graphdata(dataset_source_path,args):
         graph_list.append(data)
 
     label_dict = dict(sorted(label_dict.items(), key=lambda item: int(item[0])))
+    print("list of label names", label_dict)
     print("The dataset has been loaded. its contains: ",len(graph_list)," graphs.")
     print("graph 1:", graph_list[1])
     sampler=ImbalancedSampler(graph_list)

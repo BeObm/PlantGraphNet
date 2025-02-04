@@ -17,7 +17,7 @@ import cv2
 # Build the PyTorch Geometric dataset using Harris conner detection approach
 def build_dataset(dataset_path, args):
     
-    nb_per_class=args.images_per_class
+    nb_per_class=args.images_per_class,
     apply_transform=args.apply_transform
     connectivity = args.connectivity
     
