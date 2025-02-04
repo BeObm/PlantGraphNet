@@ -292,19 +292,21 @@ class GNNModel0(torch.nn.Module):
         return log_softmax(x, dim=1)
 
 
-def train(model, train_loader, optimizer, criterion, device):
+def train(model, train_loader, optimizer, criterion, accelerator):
     model.train()
     total_loss = 0
     correct = 0
     total = 0
 
     for data in train_loader:
-        data.to(device)
-        optimizer.zero_grad()
+        # with accelator.accumulate(model):
+            
         outputs = model(data)
         loss = criterion(outputs, data.y)
-        loss.backward()
+        # loss.backward()
+        accelerator.backward(loss)
         optimizer.step()
+        optimizer.zero_grad()
 
         total_loss += loss.item()
         _, predicted = outputs.max(dim=1)
@@ -315,7 +317,8 @@ def train(model, train_loader, optimizer, criterion, device):
     accuracy = correct / total
     return avg_loss, accuracy
 
-def test(model, loader,device,class_names):
+
+def test(model, loader,accelerator,class_names):
     filename = f"{config['param']['result_folder']}/confusion_matrix.pdf"
 
     model.eval()
@@ -323,7 +326,7 @@ def test(model, loader,device,class_names):
     y_pred = []
     with torch.no_grad():
         for data in loader:
-            data.to(device)
+            # data.to(device)
             out = model(data)
             pred = out.argmax(dim=1)
             y_true.extend(data.y.tolist())

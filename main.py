@@ -16,6 +16,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--dataset", help="Dataset name", default="train")
     parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
+    parser.add_argument("--connectivity", type=int, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
 
     parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
@@ -29,10 +30,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     
-    dist.init_process_group("gloo")
+    dist.init_process_group(backend="gloo", init_method="env")
     accelerator = Accelerator(gradient_accumulation_steps=2)
     
-    create_config_file(args.dataset,args.type_graph)
+    create_config_file(args.dataset, args.type_graph, args.connectivity)
     device = torch.device(f'cuda:{args.gpu_idx}' if torch.cuda.is_available() else 'cpu')
     device = accelerator.device
     print("device:", device)
