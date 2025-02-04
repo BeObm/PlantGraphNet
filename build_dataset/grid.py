@@ -6,6 +6,7 @@ from PIL import Image
 from utils import *
 import torch
 import torchvision.models as models
+import multiprocessing
 from PIL import Image
 import numpy as np
 import networkx as nx
@@ -21,20 +22,23 @@ def build_dataset(dataset_path, nb_per_class=200,apply_transform=True):
 
     for label, class_folder in tqdm(enumerate(class_folders)):
         print(f"Contructing graph data for Class #{label}: {class_folder} ... \n ")
-
+        
         class_path = os.path.join(dataset_path, class_folder)
         if nb_per_class==0:
           image_files = shuffle_dataset([f for f in os.listdir(class_path) if f.lower().endswith(('.png', '.jpg', '.jpeg','.tiff'))])
         else:
           image_files = shuffle_dataset([f for f in os.listdir(class_path) if f.lower().endswith(('.png', '.jpg', '.jpeg','.tiff'))])[:nb_per_class]
         a = 1
-        for idx,img_file in enumerate(image_files):
-            img_path = os.path.join(class_path, img_file)
-            image_to_graph(img_path=img_path,
-                           label=label,
-                           label_name=class_folder,
-                           apply_transforms=apply_transform,
-                           output_path=f"{graph_dataset_dir}/{label}_{idx}.pt")
+        with multiprocessing.Pool() as pool:
+            pool.starmap(image_to_graph, [[os.path.join(class_path, img_file), label, class_folder, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt"] for idx,img_file in enumerate(image_files)])
+            
+        # for idx,img_file in enumerate(image_files):
+        #     img_path = os.path.join(class_path, img_file)
+        #     image_to_graph(img_path=img_path,
+        #                    label=label,
+        #                    label_name=class_folder,
+        #                    apply_transforms=apply_transform,
+                        #    output_path=f"{graph_dataset_dir}/{label}_{idx}.pt")
 
         print(f"Contructed {len(image_files)} graphs  for Class #{label}: {class_folder} \n")
 

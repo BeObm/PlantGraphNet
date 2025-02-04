@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torchvision.models as models
 from PIL import Image
+import multiprocessing
 from utils import *
 import os
 from tqdm import tqdm
@@ -14,7 +15,12 @@ import cv2
 
 
 # Build the PyTorch Geometric dataset using Harris conner detection approach
-def build_dataset(dataset_path, nb_per_class=200,apply_transform=True):
+def build_dataset(dataset_path, args):
+    
+    nb_per_class=args.images_per_class,
+    apply_transform=args.apply_transform
+    connectivity = args.connectivity
+    
     dataset = []
     class_folders = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
     graph_dataset_dir = f"{config['param']['graph_dataset_folder']}"
@@ -29,20 +35,24 @@ def build_dataset(dataset_path, nb_per_class=200,apply_transform=True):
         else:
           image_files = shuffle_dataset([f for f in os.listdir(class_path) if f.lower().endswith(('.png', '.jpg', '.jpeg','.tiff'))])[:nb_per_class]
         a = 1
-        for idx,img_file in enumerate(image_files):
-            img_path = os.path.join(class_path, img_file)
-            image_to_graph(image_path=img_path,
-                           label=label,
-                           label_name=class_folder,
-                           apply_transforms=apply_transform,
-                           output_path=f"{graph_dataset_dir}/{label}_{idx}.pt")
+        
+        with multiprocessing.Pool() as pool:
+            pool.starmap(image_to_graph, [(os.path.join(class_path, img_file), label, class_folder,connectivity, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt") for idx,img_file in enumerate(image_files)])
+       
+        # for idx,img_file in enumerate(image_files):
+        #     img_path = os.path.join(class_path, img_file)
+        #     image_to_graph(image_path=img_path,
+        #                    label=label,
+        #                    label_name=class_folder,
+        #                    apply_transforms=apply_transform,
+        #                    output_path=f"{graph_dataset_dir}/{label}_{idx}.pt")
 
-        print(f"Contructed {len(image_files)} graphs  for Class #{label}: {class_folder} \n")
+        print(f"Contructed {len(image_files)} graphs  for Class #{label}: {class_folder} \n",flush=True)
 
 
 
 
-def image_to_graph(image_path, label,label_name,apply_transforms=True, output_path="dataset/test_graph_data.pt",k=0.04, threshold=0.01, edge_type='8-connectivity'):
+def image_to_graph(image_path, label,label_name,connectivity,apply_transforms=True, output_path="dataset/test_graph_data.pt",k=0.04, threshold=0.01):
     """
     Build a PyTorch graph from an image based on Harris corner detection.
 
@@ -50,7 +60,7 @@ def image_to_graph(image_path, label,label_name,apply_transforms=True, output_pa
         image_path (str): Path to the image.
         k (float): Harris detector free parameter for detecting corners.
         threshold (float): Threshold for detecting strong corners.
-        edge_type (str): Type of graph edges. Options: '4-connectivity', '8-connectivity'.
+        connectivity (str): Type of graph edges. Options: '4-connectivity', '8-connectivity'.
 
     Returns:
         torch_geometric.data.Data: PyTorch geometric data object.
@@ -84,17 +94,17 @@ def image_to_graph(image_path, label,label_name,apply_transforms=True, output_pa
 
         # Neighbor coordinate offsets for chosen connectivity
         neighbors = []
-        if edge_type == '8-connectivity':
+        if connectivity == '8-connectivity':
             neighbors = [
                 (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1),
                 (i - 1, j - 1), (i - 1, j + 1), (i + 1, j - 1), (i + 1, j + 1)
             ]
-        elif edge_type == '4-connectivity':
+        elif connectivity == '4-connectivity':
             neighbors = [
                 (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)
             ]
         else:
-            raise ValueError(f"Invalid edge_type {edge_type}")
+            raise ValueError(f"Invalid connectivity {connectivity}. Choose '4-connectivity' or '8-connectivity'.")
 
         # Process each neighbor
         for ni, nj in neighbors:
