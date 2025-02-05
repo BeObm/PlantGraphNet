@@ -295,7 +295,6 @@ class GNNModel0(torch.nn.Module):
 def train(model, train_loader, optimizer, criterion, device):
     model.train()
     total_loss = 0
-    correct = 0
     total = 0
 
     for data in train_loader:
@@ -307,13 +306,10 @@ def train(model, train_loader, optimizer, criterion, device):
         optimizer.step()
 
         total_loss += loss.item()
-        _, predicted = outputs.max(dim=1)
-        correct += predicted.eq(data.y).sum().item()
-        total += data.y.size(0)
+       
 
     avg_loss = total_loss / len(train_loader)
-    accuracy = correct / total
-    return avg_loss, accuracy
+    return avg_loss
 
 def test(model, loader,device,class_names):
     filename = f"{config['param']['result_folder']}/confusion_matrix.pdf"

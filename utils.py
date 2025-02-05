@@ -3,7 +3,7 @@ import csv
 import os.path as osp
 from configparser import ConfigParser
 from datetime import datetime
-
+from torch.utils.data.distributed import DistributedSampler
 import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
@@ -335,12 +335,13 @@ def Load_graphdata(dataset_source_path,args):
     label_dict = dict(sorted(label_dict.items(), key=lambda item: int(item[0])))
     print("The dataset has been loaded. its contains: ",len(graph_list)," graphs.")
     print("graph 1:", graph_list[1])
-    sampler=ImbalancedSampler(graph_list)
+    
+    sampler=DistributedSampler(graph_list)
     if args.dataset=="train":
         print("Batch size is:"," ",args.batch_size)
         dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler,num_workers=os.cpu_count())
     else:
-        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=False, num_workers=os.cpu_count())
+        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler, num_workers=os.cpu_count())
 
     feat_size=data.x.shape[1]
 

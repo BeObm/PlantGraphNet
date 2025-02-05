@@ -1,0 +1,138 @@
+import torch
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+# from datautils import MyTrainDataset
+import argparse
+from datetime import datetime
+from torch_geometric.nn import GENConv, GATConv
+from tqdm import tqdm
+import torch.multiprocessing as mp
+from torch.utils.data.distributed import DistributedSampler
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.distributed import init_process_group, destroy_process_group
+import os
+from model import *
+
+
+
+def ddp_setup():
+    torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
+    init_process_group(backend="gloo")
+
+class Trainer:
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        train_data: DataLoader,
+        optimizer: torch.optim.Optimizer,
+        save_every: int,
+        snapshot_path: str,
+       
+    ) -> None:
+        self.gpu_id = int(os.environ["LOCAL_RANK"])
+        self.model = model.to(self.gpu_id)
+        self.train_data = train_data
+        self.optimizer = optimizer
+        self.save_every = save_every
+        self.epochs_run = 0
+        self.snapshot_path = snapshot_path
+        if os.path.exists(snapshot_path):
+            print("Loading snapshot")
+            self._load_snapshot(snapshot_path)
+
+        self.model = DDP(self.model, device_ids=[self.gpu_id])
+
+    def _load_snapshot(self, snapshot_path):
+        loc = f"cuda:{self.gpu_id}"
+        snapshot = torch.load(snapshot_path, map_location=loc)
+        self.model.load_state_dict(snapshot["MODEL_STATE"])
+        self.epochs_run = snapshot["EPOCHS_RUN"]
+        print(f"Resuming training from snapshot at Epoch {self.epochs_run}")
+    
+    def _save_snapshot(self, epoch):
+        snapshot = {
+            "MODEL_STATE": self.model.module.state_dict(),
+            "EPOCHS_RUN": epoch,
+        }
+        torch.save(snapshot, self.snapshot_path)
+        print(f"Epoch {epoch} | Training snapshot saved at {self.snapshot_path}")
+
+    def train(self, max_epochs: int):
+        for epoch in range(self.epochs_run, max_epochs):
+            b_sz = len(next(iter(self.train_data))[0])
+            print(f"[GPU{self.gpu_id}] Epoch {epoch} | Batchsize: {b_sz} | Steps: {len(self.train_data)}")
+            self.train_data.sampler.set_epoch(epoch)
+            for data in self.train_data:
+                source = data.to(self.gpu_id)
+                targets = data.y.to(self.gpu_id)
+                self.optimizer.zero_grad()
+                output = self.model(source)
+                loss = F.cross_entropy(output, targets)
+                loss.backward()
+                self.optimizer.step()  
+                
+            if self.gpu_id == 0 and epoch % self.save_every == 0:
+                self._save_snapshot(epoch)
+
+
+
+def prepare_dataloader(dataset, batch_size: int):
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        pin_memory=True,
+        shuffle=False,
+        sampler=DistributedSampler(dataset)
+    )
+
+
+
+if __name__ == "__main__": 
+    import argparse
+    parser = argparse.ArgumentParser(description='DP-based GNN training')
+    parser.add_argument('--save_every', default=10,type=int, help='How often to save a snapshot')
+    parser.add_argument('--batch_size', default=16, type=int, help='Input batch size on each device (default: 32)')
+    parser.add_argument("--dataset", help="Dataset name", default="train")
+    parser.add_argument("--type_graph", default="harris", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
+    parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
+    parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
+    parser.add_argument("--total_epochs", type=int, default=50, help="num_epochs")
+    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
+    parser.add_argument("--wd", type=float, default=0.005, help="wd")
+    parser.add_argument("--Conv1", default=GENConv, help="Conv1")
+    parser.add_argument("--Conv2", default=GATConv, help="Conv2")
+    parser.add_argument("--gpu_idx", default=3, help="GPU  num")
+    parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
+    
+    args = parser.parse_args()
+    ddp_setup()
+    create_config_file(args.dataset, args.type_graph, args.connectivity)
+
+    start_time=datetime.now()
+    train_loader,feat_size,class_names= Load_graphdata(config['param']["graph_dataset_folder"],args=args)
+    test_loader,_,_ =Load_graphdata(config['param']["graph_dataset_folder"],args=args)
+
+    input_dim = feat_size
+    hidden_dim = args.hidden_dim
+    output_dim = 10
+    num_epochs = args.total_epochs
+    batch_size = args.batch_size
+    
+    
+    save_every=args.save_every
+    total_epochs=args.total_epochs
+    batch_size=args.batch_size
+    
+    model = GNNModel(num_node_features=input_dim,
+                     hidden_dim=hidden_dim,
+                     num_classes=output_dim,
+                     Conv1=args.Conv1,
+                     Conv2=args.Conv2,
+                     image_feature=50176,
+                     use_image_feats=args.use_image_feats)
+    
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+    
+    trainer = Trainer(model, train_loader, optimizer, save_every, snapshot_path="snapshot.pth")
+    trainer.train(total_epochs)
+    destroy_process_group()
