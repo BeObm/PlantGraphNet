@@ -83,7 +83,6 @@ if __name__ == "__main__":
 
     plot_and_save_training_performance(num_epochs=num_epochs,
                                        losses=train_losses,
-                                       accuracies=train_accuracies,
                                        folder_name=config['param']['result_folder'])
 
     cls_report = test(model=model,
@@ -93,6 +92,8 @@ if __name__ == "__main__":
 
     cr = pd.DataFrame(cls_report).transpose()
     cr.to_excel( f"{config['param']['result_folder']}/result_for_GNN_Model.xlsx")
-
+    
     print(f"Model Classification report for GNN model \n ")
     print(cr)
+    
+

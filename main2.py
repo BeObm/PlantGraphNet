@@ -58,7 +58,9 @@ class Trainer:
         print(f"Epoch {epoch} | Training snapshot saved at {self.snapshot_path}")
 
     def train(self, max_epochs: int):
+        train_losses = []
         for epoch in range(self.epochs_run, max_epochs):
+            total_loss=0
             b_sz = len(next(iter(self.train_data))[0])
             print(f"[GPU{self.gpu_id}] Epoch {epoch} | Batchsize: {b_sz} | Steps: {len(self.train_data)}")
             self.train_data.sampler.set_epoch(epoch)
@@ -70,10 +72,11 @@ class Trainer:
                 loss = F.cross_entropy(output, targets)
                 loss.backward()
                 self.optimizer.step()  
-                
+                total_loss += loss.item()
+            train_losses.append(total_loss/len(self.train_data))
             if self.gpu_id == 0 and epoch % self.save_every == 0:
                 self._save_snapshot(epoch)
-
+        return train_losses
 
 
 def prepare_dataloader(dataset, batch_size: int):
@@ -101,10 +104,12 @@ if __name__ == "__main__":
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
     parser.add_argument("--Conv1", default=GENConv, help="Conv1")
     parser.add_argument("--Conv2", default=GATConv, help="Conv2")
-    parser.add_argument("--gpu_idx", default=3, help="GPU  num")
+    # parser.add_argument("--gpu_idx", default=3, help="GPU  num")
     parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
     
     args = parser.parse_args()
+    device = torch.device(f'cuda:{int(os.environ["LOCAL_RANK"])}' if torch.cuda.is_available() else 'cpu')
+    
     ddp_setup()
     create_config_file(args.dataset, args.type_graph, args.connectivity)
 
@@ -134,5 +139,20 @@ if __name__ == "__main__":
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
     
     trainer = Trainer(model, train_loader, optimizer, save_every, snapshot_path="snapshot.pth")
-    trainer.train(total_epochs)
+    train_losses = trainer.train(total_epochs)
     destroy_process_group()
+    plot_and_save_training_performance(num_epochs=num_epochs,
+                                       losses=train_losses,
+                                       folder_name=config['param']['result_folder'])
+
+    cls_report = test(model=model,
+                        loader=test_loader,
+                        device=device,
+                        class_names=class_names)
+
+    cr = pd.DataFrame(cls_report).transpose()
+    cr.to_excel( f"{config['param']['result_folder']}/result_for_GNN_Model.xlsx")
+    
+    print(f"Model Classification report for GNN model \n ")
+    print(cr)
+    

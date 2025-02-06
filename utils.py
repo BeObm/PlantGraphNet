@@ -113,15 +113,15 @@ def save_plots(train_losses, metrics_dict):
     training_df.to_csv(f"{config['param']['result_folder']}/training_evolution.csv", index=False)
 
 
-def plot_and_save_training_performance(num_epochs, losses, accuracies, folder_name):
+def plot_and_save_training_performance(num_epochs, losses, folder_name):
     csv_file=f"{folder_name}/training_evolution.csv"
     pdf_file=f"{folder_name}/training_performance.pdf"
     with open(csv_file, mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Epoch', 'Loss', 'Accuracy'])
+        writer.writerow(['Epoch', 'Loss'])
         epochs = range(1,num_epochs+1)
-        for epoch, loss, accuracy in zip(epochs, losses, accuracies):
-            writer.writerow([epoch, loss, accuracy])
+        for epoch, loss in zip(epochs, losses):
+            writer.writerow([epoch, loss])
 
     plt.figure(figsize=(12, 5))
     # Plotting training loss
@@ -131,12 +131,6 @@ def plot_and_save_training_performance(num_epochs, losses, accuracies, folder_na
     plt.ylabel('Loss')
     plt.title('Training Loss')
     plt.legend()
-    # Plotting training accuracy
-    plt.subplot(1, 2, 2)
-    plt.plot(epochs, accuracies, label='Training Accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Accuracy')
-    plt.title('Training Accuracy')
     plt.tight_layout()
 
     plt.savefig(pdf_file, format='pdf')
@@ -331,7 +325,7 @@ def Load_graphdata(dataset_source_path,args):
         if data.y not in label_dict.keys():
             label_dict[data.y] = data.label_name
         graph_list.append(data)
-
+    
     label_dict = dict(sorted(label_dict.items(), key=lambda item: int(item[0])))
     print("The dataset has been loaded. its contains: ",len(graph_list)," graphs.")
     print("graph 1:", graph_list[1])
