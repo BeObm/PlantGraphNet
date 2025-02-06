@@ -25,14 +25,14 @@ def create_config_file(type_dataset,type_graph,connectivity):
     config_filename = f"{configs_folder}/ConfigFile_{RunCode}.ini"
     graph_filename = f"{project_root_dir}/dataset/graphs/{type_graph}"
     os.makedirs(graph_filename, exist_ok=True)
-    os.makedirs(f"{graph_filename}/{type_dataset}_{connectivity}", exist_ok=True)
+    os.makedirs(f"{graph_filename}/{connectivity}", exist_ok=True)
     config["param"] = {
         'config_filename': config_filename,
         "type_dataset": type_dataset,
         'type_graph': type_graph,
         "graph_filename":graph_filename,
-        "image_dataset_root": f"{project_root_dir}/dataset/images/{type_dataset}",
-        "graph_dataset_folder": f"{graph_filename}/{type_dataset}_{connectivity}",
+        "image_dataset_root": f"{project_root_dir}/dataset/images",
+        "graph_dataset_folder": f"{graph_filename}/{connectivity}",
         "result_folder": f"{configs_folder}",
         "sigma":1.0,
         "threshold":0.01,
@@ -313,7 +313,19 @@ def save_multiple_time_to_excel_with_date(cr, args):
     else:
         cr.to_excel(output_file_path)
 
-def Load_graphdata(dataset_source_path,args):
+def graphdata_loader(graph_list,args,type_data="train"):
+    set_seed()
+      
+    sampler=DistributedSampler(graph_list)
+    if type_data == "train":
+        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler)
+    else:
+        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=False, num_workers=os.cpu_count())
+
+
+    return dataset_loader
+
+def Load_graphdata(dataset_source_path):
     set_seed()
     graph_list=[]
     label_dict={}
@@ -329,14 +341,7 @@ def Load_graphdata(dataset_source_path,args):
     label_dict = dict(sorted(label_dict.items(), key=lambda item: int(item[0])))
     print("The dataset has been loaded. its contains: ",len(graph_list)," graphs.")
     print("graph 1:", graph_list[1])
-    
-    sampler=DistributedSampler(graph_list)
-    if args.dataset=="train":
-        print("Batch size is:"," ",args.batch_size)
-        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler,num_workers=os.cpu_count())
-    else:
-        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler, num_workers=os.cpu_count())
-
     feat_size=data.x.shape[1]
 
-    return dataset_loader,feat_size, list(label_dict.values())
+
+    return graph_list,label_dict,feat_size, list(label_dict.values())

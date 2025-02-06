@@ -15,7 +15,7 @@ import cv2
 
 
 # Build the PyTorch Geometric dataset using Harris conner detection approach
-def build_dataset(dataset_path, args):
+def build_dataset(dataset_path, args,type_dataset):
     
     nb_per_class=args.images_per_class,
     apply_transform=args.apply_transform
@@ -23,7 +23,7 @@ def build_dataset(dataset_path, args):
     
     dataset = []
     class_folders = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
-    graph_dataset_dir = f"{config['param']['graph_dataset_folder']}"
+    graph_dataset_dir = f"{config['param']['graph_dataset_folder']}/{type_dataset}"
 
 
     for label, class_folder in tqdm(enumerate(class_folders)):
@@ -117,9 +117,9 @@ def image_to_graph(image_path, label,label_name,connectivity,apply_transforms=Tr
     # Convert corner positions to PyTorch tensor as node features
     x = torch.tensor(node_features, dtype=torch.float)
 
-    foundation_model = models.densenet121(weights='DenseNet121_Weights.IMAGENET1K_V1')
-    feature_extractor = torch.nn.Sequential(*list(foundation_model.features.children()))
-    feature_extractor.eval()
+    # foundation_model = models.densenet121(weights='DenseNet121_Weights.IMAGENET1K_V1')
+    # feature_extractor = torch.nn.Sequential(*list(foundation_model.features.children()))
+    # feature_extractor.eval()
     image = Image.open(image_path).convert('RGB')
 
     if apply_transforms:
@@ -130,15 +130,15 @@ def image_to_graph(image_path, label,label_name,connectivity,apply_transforms=Tr
         img = transform_pipeline(image).unsqueeze(dim=0)
 
 
-    with torch.no_grad():
-        features = feature_extractor(img)
+    # with torch.no_grad():
+    #     features = feature_extractor(img)
 
-    img_features = torch.flatten(features, start_dim=1)
+    # img_features = torch.flatten(features, start_dim=1)
 
 
 
     # Return PyTorch geometric Data object
-    data = Data(x=x, edge_index=edge_index, y=label, image_features=img_features,label_name=label_name)
+    data = Data(x=x, edge_index=edge_index, y=label, image_features=img,label_name=label_name)
     torch.save(data, output_path)
 
     return data

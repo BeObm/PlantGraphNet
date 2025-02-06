@@ -20,7 +20,9 @@ if __name__ == "__main__":
     graph_constructor_obj = importlib.import_module(f"build_dataset.{args.type_graph}")
     graph_constructor = getattr(graph_constructor_obj, "build_dataset")
     start_time = datetime.now()
-    dataset_path = graph_constructor(dataset_path=config['param']["image_dataset_root"],
+    graph_constructor(dataset_path=f"{config['param']["image_dataset_root"]}/train",
+                                     args=args)
+    graph_constructor(dataset_path=f"{config['param']["image_dataset_root"]}/test",
                                      args=args)
     print("Graph dataset created successfully in ", datetime.now() - start_time)
 
