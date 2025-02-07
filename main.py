@@ -5,26 +5,17 @@ from tqdm import tqdm
 import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.distributed import init_process_group, destroy_process_group
 from model import *
 import os
 
 
 
-def ddp_setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'    # shouyld be the ip of the master node
-    os.environ['MASTER_PORT'] = '12355'  #can be any free port on my pc
-    # initialize the process group
-    init_process_group("gloo", rank=rank, world_size=world_size)
-    # Explicitly setting seed to make sure that models created in two processes start from same random weights and biases.
-    set_seed()
     
     
 if __name__ == "__main__":
     set_seed()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset", help="Dataset name", default="train")
     parser.add_argument("--type_graph", default="harris", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
     parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
@@ -38,14 +29,15 @@ if __name__ == "__main__":
     parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
     
     args = parser.parse_args()
-    ddp_setup(rank=args.gpu_idx, world_size=4)
 
-    create_config_file(args.dataset, args.type_graph, args.connectivity)
-    # device = torch.device(f'cuda:{args.gpu_idx}' if torch.cuda.is_available() else 'cpu')
+    create_config_file(args.type_graph, args.connectivity)
+    device = torch.device(f'cuda:{args.gpu_idx}' if torch.cuda.is_available() else 'cpu')
     print("Rank:",args.gpu_idxice)
     start_time=datetime.now()
-    train_loader,feat_size,class_names= Load_graphdata(config['param']["graph_dataset_folder"],args=args)
-    test_loader,_,_ =Load_graphdata(config['param']["graph_dataset_folder"],args=args)
+    
+    
+    train_loader,feat_size,class_names= Load_graphdata(f"{config['param']['graph_dataset_folde']}/train",args=args)
+    test_loader,_,_ =Load_graphdata(f"{config['param']['graph_dataset_folde']}/test",args=args)
 
     print(f"The labels are {class_names}")
 

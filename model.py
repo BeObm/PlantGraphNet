@@ -228,7 +228,8 @@ class GNNModel(torch.nn.Module):
         node_features = data.x
         edge_index = data.edge_index.view(2, -1)
         batch = data.batch
-        image_features=data.image_features
+        if self.use_image_feats==True:
+            image_features=data.image_features
         # print(f"node_features: {node_features.shape} edge_index: {edge_index.shape} batch: {batch.shape} image_features: {image_features.shape}")
         node_features = self.graph_conv1(node_features, edge_index)
         node_features = self.batch_norm1(node_features)

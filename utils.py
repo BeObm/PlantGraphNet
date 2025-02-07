@@ -19,8 +19,8 @@ config = ConfigParser()
 RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
 project_root_dir = os.path.abspath(os.getcwd())
 
-def create_config_file(type_dataset,type_graph,connectivity):
-    configs_folder = osp.join(project_root_dir, f'results/{type_dataset}/{RunCode}')
+def create_config_file(type_graph,connectivity):
+    configs_folder = osp.join(project_root_dir, f'results/GNN_Models/{type_graph}/{RunCode}')
     os.makedirs(configs_folder, exist_ok=True)
     config_filename = f"{configs_folder}/ConfigFile_{RunCode}.ini"
     graph_filename = f"{project_root_dir}/dataset/graphs/{type_graph}"
@@ -28,10 +28,11 @@ def create_config_file(type_dataset,type_graph,connectivity):
     os.makedirs(f"{graph_filename}/{connectivity}", exist_ok=True)
     config["param"] = {
         'config_filename': config_filename,
-        "type_dataset": type_dataset,
         'type_graph': type_graph,
         "graph_filename":graph_filename,
-        "image_dataset_root": f"{project_root_dir}/dataset/images",
+        "train_image_dataset_root": f"{project_root_dir}/dataset/images/train",
+        "test_image_dataset_root": f"{project_root_dir}/dataset/images/test",
+
         "graph_dataset_folder": f"{graph_filename}/{connectivity}",
         "result_folder": f"{configs_folder}",
         "sigma":1.0,
@@ -344,4 +345,4 @@ def Load_graphdata(dataset_source_path):
     feat_size=data.x.shape[1]
 
 
-    return graph_list,label_dict,feat_size, list(label_dict.values())
+    return graph_list,feat_size, list(label_dict.values())

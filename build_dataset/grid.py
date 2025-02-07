@@ -9,16 +9,20 @@ import torchvision.models as models
 import multiprocessing
 from PIL import Image
 import numpy as np
+import os
 import networkx as nx
 import matplotlib.pyplot as plt
 
 
 # Build the PyTorch Geometric dataset using grid-based approach
-def build_dataset(dataset_path, nb_per_class=200,apply_transform=True):
+def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
+    
+    nb_per_class=args.images_per_class
+    connectivity = args.connectivity
     dataset = []
     class_folders = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
-    graph_dataset_dir = f"{config['param']['graph_dataset_folder']}"
-
+    graph_dataset_dir = f"{config['param']['graph_dataset_folder']}/{type_dataset}"
+    os.makedirs(graph_dataset_dir, exist_ok=True)
 
     for label, class_folder in tqdm(enumerate(class_folders)):
         print(f"Contructing graph data for Class #{label}: {class_folder} ... \n ")

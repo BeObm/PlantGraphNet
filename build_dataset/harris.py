@@ -15,15 +15,15 @@ import cv2
 
 
 # Build the PyTorch Geometric dataset using Harris conner detection approach
-def build_dataset(dataset_path, args,type_dataset):
+def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
     
-    nb_per_class=args.images_per_class,
-    apply_transform=args.apply_transform
+    nb_per_class=args.images_per_class
     connectivity = args.connectivity
     
     dataset = []
     class_folders = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
     graph_dataset_dir = f"{config['param']['graph_dataset_folder']}/{type_dataset}"
+    os.makedirs(graph_dataset_dir, exist_ok=True)
 
 
     for label, class_folder in tqdm(enumerate(class_folders)):

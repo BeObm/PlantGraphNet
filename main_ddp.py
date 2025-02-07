@@ -40,7 +40,7 @@ class Trainer:
             print("Loading snapshot")
             self._load_snapshot(snapshot_path)
 
-        self.model = DDP(self.model, device_ids=[self.gpu_id])
+        self.model = DDP(self.model, device_ids=[self.gpu_id],find_unused_parameters=True)
 
     def _load_snapshot(self, snapshot_path):
         loc = f"cuda:{self.gpu_id}"
@@ -94,10 +94,9 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='DP-based GNN training')
     parser.add_argument('--save_every', default=10,type=int, help='How often to save a snapshot')
-    parser.add_argument('--batch_size', default=16, type=int, help='Input batch size on each device (default: 32)')
-    parser.add_argument("--dataset", help="Dataset name", default="train")
-    parser.add_argument("--type_graph", default="harris", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
-    parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
+    parser.add_argument('--batch_size', default=4, type=int, help='Input batch size on each device (default: 16)')
+    parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
+    parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
     parser.add_argument("--total_epochs", type=int, default=50, help="num_epochs")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
@@ -108,14 +107,18 @@ if __name__ == "__main__":
     parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
     
     args = parser.parse_args()
-    device = torch.device(f'cuda:{int(os.environ["LOCAL_RANK"])}' if torch.cuda.is_available() else 'cpu')
+    create_config_file(args.type_graph, args.connectivity)
+
+    train_graph_list,feat_size,class_names = Load_graphdata(f"{config['param']['graph_dataset_folder']}/train")
+    test_graph_list,_,_ = Load_graphdata(f"{config['param']['graph_dataset_folder']}/test")
     
     ddp_setup()
-    create_config_file(args.dataset, args.type_graph, args.connectivity)
+    # device = torch.device(f'cuda:{int(os.environ["LOCAL_RANK"])}' if torch.cuda.is_available() else 'cpu')
+
 
     start_time=datetime.now()
-    train_loader,feat_size,class_names= Load_graphdata(config['param']["graph_dataset_folder"],args=args)
-    test_loader,_,_ =Load_graphdata(config['param']["graph_dataset_folder"],args=args)
+    train_loader= graphdata_loader(train_graph_list,args=args,type_data="train")
+    test_loader=graphdata_loader(test_graph_list,args=args,type_data="test")
 
     input_dim = feat_size
     hidden_dim = args.hidden_dim
@@ -147,7 +150,7 @@ if __name__ == "__main__":
 
     cls_report = test(model=model,
                         loader=test_loader,
-                        device=device,
+                        device=torch.device("cuda" if torch.cuda.is_available() else 'cpu'),
                         class_names=class_names)
 
     cr = pd.DataFrame(cls_report).transpose()
