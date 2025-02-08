@@ -7,17 +7,16 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from model import *
 import os
+import gc
 
 
-
-    
-    
+   
 if __name__ == "__main__":
     set_seed()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_graph", default="harris", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
-    parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
+    parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
+    parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=8, help="batch_size")
@@ -32,15 +31,21 @@ if __name__ == "__main__":
 
     create_config_file(args.type_graph, args.connectivity)
     device = torch.device(f'cuda:{args.gpu_idx}' if torch.cuda.is_available() else 'cpu')
-    print("Rank:",args.gpu_idxice)
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    
+    
+    train_graph_list,feat_size,class_names = Load_graphdata(f"{config['param']['graph_dataset_folder']}/train")
+    test_graph_list,_,_ = Load_graphdata(f"{config['param']['graph_dataset_folder']}/test")
+    
+    gc.collect()
+    torch.cuda.empty_cache()     
+
     start_time=datetime.now()
+    train_loader= graphdata_loader(train_graph_list,args=args,type_data="train", ddp=False)
+    test_loader=graphdata_loader(test_graph_list,args=args,type_data="test", ddp=False)
     
     
-    train_loader,feat_size,class_names= Load_graphdata(f"{config['param']['graph_dataset_folde']}/train",args=args)
-    test_loader,_,_ =Load_graphdata(f"{config['param']['graph_dataset_folde']}/test",args=args)
-
-    print(f"The labels are {class_names}")
-
     input_dim = feat_size
     hidden_dim = args.hidden_dim
     output_dim = 10

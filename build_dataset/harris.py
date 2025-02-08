@@ -19,7 +19,8 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
     
     nb_per_class=args.images_per_class
     connectivity = args.connectivity
-    
+    use_image_feats = args.use_image_feats
+  
     dataset = []
     class_folders = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
     graph_dataset_dir = f"{config['param']['graph_dataset_folder']}/{type_dataset}"
@@ -37,7 +38,7 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
         a = 1
         
         with multiprocessing.Pool() as pool:
-            pool.starmap(image_to_graph, [(os.path.join(class_path, img_file), label, class_folder,connectivity, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt") for idx,img_file in enumerate(image_files)])
+            pool.starmap(image_to_graph, [(os.path.join(class_path, img_file), label, class_folder, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt",use_image_feats) for idx,img_file in enumerate(image_files)])
        
         # for idx,img_file in enumerate(image_files):
         #     img_path = os.path.join(class_path, img_file)
@@ -52,7 +53,7 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
 
 
 
-def image_to_graph(image_path, label,label_name,connectivity,apply_transforms=True, output_path="dataset/test_graph_data.pt",k=0.04, threshold=0.01):
+def image_to_graph(image_path, label,label_name,connectivity,apply_transforms=True, output_path="dataset/test_graph_data.pt",k=0.04, threshold=0.01, use_image_feats=False):
     """
     Build a PyTorch graph from an image based on Harris corner detection.
 
@@ -138,7 +139,10 @@ def image_to_graph(image_path, label,label_name,connectivity,apply_transforms=Tr
 
 
     # Return PyTorch geometric Data object
-    data = Data(x=x, edge_index=edge_index, y=label, image_features=img,label_name=label_name)
+    if use_image_feats==True:
+            data = Data(x=x, edge_index=edge_index, y=label, image_features=img,label_name=label_name)
+    else:
+        data = Data(x=x, edge_index=edge_index, y=label,label_name=label_name)
     torch.save(data, output_path)
 
     return data

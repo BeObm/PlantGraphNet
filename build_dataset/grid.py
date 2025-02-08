@@ -19,6 +19,7 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
     
     nb_per_class=args.images_per_class
     connectivity = args.connectivity
+    use_image_feats = args.use_image_feats
     dataset = []
     class_folders = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
     graph_dataset_dir = f"{config['param']['graph_dataset_folder']}/{type_dataset}"
@@ -34,7 +35,7 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
           image_files = shuffle_dataset([f for f in os.listdir(class_path) if f.lower().endswith(('.png', '.jpg', '.jpeg','.tiff'))])[:nb_per_class]
         a = 1
         with multiprocessing.Pool() as pool:
-            pool.starmap(image_to_graph, [[os.path.join(class_path, img_file), label, class_folder, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt"] for idx,img_file in enumerate(image_files)])
+            pool.starmap(image_to_graph, [(os.path.join(class_path, img_file), label, class_folder, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt",use_image_feats) for idx,img_file in enumerate(image_files)])
             
         # for idx,img_file in enumerate(image_files):
         #     img_path = os.path.join(class_path, img_file)
@@ -49,7 +50,7 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
 
 
 
-def image_to_graph(img_path, label,label_name,apply_transforms=True, output_path="data/graph_data.pt"):
+def image_to_graph(img_path, label,label_name,apply_transforms=True, output_path="data/graph_data.pt", use_image_feats=False):
     img = Image.open(img_path).convert('RGB')
 
     if apply_transforms:
@@ -62,7 +63,10 @@ def image_to_graph(img_path, label,label_name,apply_transforms=True, output_path
         # img = torch.from_numpy(np.transpose(img, (2, 0, 1))).to(dtype=torch.float)
     x, edge_index = get_node_features_and_edge_list(img)
     y = torch.tensor([label], dtype=torch.long)
-    data=Data(x=x, edge_index=edge_index, y=y, image_features=img.unsqueeze(dim=0),label_name=label_name)
+    if use_image_feats==True:
+         data=Data(x=x, edge_index=edge_index, y=y, image_features=img.unsqueeze(dim=0),label_name=label_name)
+    else:
+        data=Data(x=x, edge_index=edge_index, y=y,label_name=label_name)
     print(data)
     torch.save(data, output_path)
 

@@ -314,14 +314,22 @@ def save_multiple_time_to_excel_with_date(cr, args):
     else:
         cr.to_excel(output_file_path)
 
-def graphdata_loader(graph_list,args,type_data="train"):
+def graphdata_loader(graph_list,args,type_data="train",ddp=True):
     set_seed()
-      
-    sampler=DistributedSampler(graph_list)
-    if type_data == "train":
-        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler)
+    
+    if ddp==True:  
+        sampler=DistributedSampler(graph_list)
+        if type_data == "train":
+            dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler)
+        else:
+            dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=False, num_workers=os.cpu_count())
+
     else:
-        dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=False, num_workers=os.cpu_count())
+        sampler=ImbalancedSampler(graph_list)
+        if type_data == "train":
+            dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler)
+        else:
+            dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=False, num_workers=os.cpu_count())
 
 
     return dataset_loader

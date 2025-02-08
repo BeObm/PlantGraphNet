@@ -192,31 +192,35 @@ class GNNModel(torch.nn.Module):
         self.batch_norm1= torch.nn.BatchNorm1d(hidden_dim*2)
         self.act=torch.nn.ReLU()
         self.use_image_feats=use_image_feats
+            
         #
         self.graph_conv2 = Conv2(hidden_dim * 2, hidden_dim)
         self.batch_norm2= torch.nn.BatchNorm1d(hidden_dim)
 
-        # Process image features with CNN (multiple convolution layers)
-        self.img_cnn = torch.nn.Sequential(
+      
+        # Linear layers for combining graph features and image features
+        self.node_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)  # Node feature transformation
+        if self.use_image_feats==True:
+              # Process image features with CNN (multiple convolution layers)
+            self.img_cnn = torch.nn.Sequential(
             torch.nn.Linear(image_feature, 1024),
             torch.nn.ReLU(),
             torch.nn.BatchNorm1d(1024),
             torch.nn.Linear(1024, 512),
             torch.nn.ReLU(),
             torch.nn.BatchNorm1d(512),
-            # torch.nn.Linear(512, 256),
-            # torch.nn.ReLU(),
-            # torch.nn.BatchNorm1d(256),
-            # torch.nn.Linear(256, 128),  # Reduce to 128-dimensional feature vector
-            # torch.nn.ReLU(),
-            torch.nn.Linear(512, hidden_dim),  # Map final features to `hidden_dim`
-        )
+            torch.nn.Linear(512, 256),
+            torch.nn.ReLU(),
+            torch.nn.BatchNorm1d(256),
+            torch.nn.Linear(256, 128),  # Reduce to 128-dimensional feature vector
+            torch.nn.ReLU(),
+            torch.nn.Linear(128, hidden_dim),  # Map final features to `hidden_dim`
+            )
+            self.img_feature_fc = torch.nn.Linear(64, hidden_dim)  # Map image features to hidden dim
+            self.img_feature_fc = torch.nn.Linear(64, hidden_dim)  # Map image features to hidden dim
 
-        # Linear layers for combining graph features and image features
-        self.img_feature_fc = torch.nn.Linear(64, hidden_dim)  # Map image features to hidden dim
-        self.node_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)  # Node feature transformation
-        if self.use_image_feats:
-           self.fc = torch.nn.Linear(hidden_dim * 2, num_classes)  # Classifier
+
+            self.fc = torch.nn.Linear(hidden_dim * 2, num_classes)  # Classifier
         else:
             self.fc=torch.nn.Linear(hidden_dim,num_classes)
 
@@ -228,8 +232,7 @@ class GNNModel(torch.nn.Module):
         node_features = data.x
         edge_index = data.edge_index.view(2, -1)
         batch = data.batch
-        if self.use_image_feats==True:
-            image_features=data.image_features
+            
         # print(f"node_features: {node_features.shape} edge_index: {edge_index.shape} batch: {batch.shape} image_features: {image_features.shape}")
         node_features = self.graph_conv1(node_features, edge_index)
         node_features = self.batch_norm1(node_features)
@@ -244,6 +247,7 @@ class GNNModel(torch.nn.Module):
 
         # Image feature processing
         if self.use_image_feats:
+            image_features=data.image_features
             img_features = image_features  # Assuming it's a 4D tensor for CNN ([batch, C, H, W])
             img_features = self.img_cnn(img_features).view(img_features.size(0), -1)  # Flatten after pooling
             img_features = self.img_feature_fc(img_features)
