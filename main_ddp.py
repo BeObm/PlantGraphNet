@@ -11,6 +11,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 import os
+import gc
 from model import *
 
 
@@ -98,7 +99,7 @@ if __name__ == "__main__":
     parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
     parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
-    parser.add_argument("--total_epochs", type=int, default=50, help="num_epochs")
+    parser.add_argument("--total_epochs", type=int, default=2, help="num_epochs")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
     parser.add_argument("--Conv1", default=GENConv, help="Conv1")
@@ -112,6 +113,9 @@ if __name__ == "__main__":
     train_graph_list,feat_size,class_names = Load_graphdata(f"{config['param']['graph_dataset_folder']}/train")
     test_graph_list,_,_ = Load_graphdata(f"{config['param']['graph_dataset_folder']}/test")
     
+    gc.collect()
+    torch.cuda.empty_cache()
+     
     ddp_setup()
     # device = torch.device(f'cuda:{int(os.environ["LOCAL_RANK"])}' if torch.cuda.is_available() else 'cpu')
 
