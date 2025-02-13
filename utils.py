@@ -343,14 +343,14 @@ def Load_graphdata(dataset_source_path):
     for file_name in os.listdir(dataset_source_path):
 
         data=torch.load(os.path.join(dataset_source_path,file_name))
-        if data.y not in label_dict.keys():
-            label_dict[data.y] = data.label_name
+        if int(data.y.item()) not in label_dict.keys():
+            label_dict[int(data.y.item())] = data.label_name
         graph_list.append(data)
     
-    label_dict = dict(sorted(label_dict.items(), key=lambda item: int(item[0])))
+    labels = list(dict(sorted(label_dict.items())).values())
     print("The dataset has been loaded. its contains: ",len(graph_list)," graphs.")
     print("graph 1:", graph_list[1])
     feat_size=data.x.shape[1]
 
-
-    return graph_list,feat_size, list(label_dict.values())
+    print("The dataset has been loaded. its contains: ",len(labels)," classses: ", list(labels))   
+    return graph_list,feat_size, labels

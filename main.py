@@ -18,21 +18,22 @@ if __name__ == "__main__":
     parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
     parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
-    parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
+    parser.add_argument("--num_epochs", type=int, default=2, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=8, help="batch_size")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
     parser.add_argument("--Conv1", default=GENConv, help="Conv1")
     parser.add_argument("--Conv2", default=GATConv, help="Conv2")
-    parser.add_argument("--gpu_idx", default=3, help="GPU  num")
+    parser.add_argument("--gpu_idx", default=0, help="GPU  num")
     parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
     
     args = parser.parse_args()
 
     create_config_file(args.type_graph, args.connectivity)
-    device = torch.device(f'cuda:{args.gpu_idx}' if torch.cuda.is_available() else 'cpu')
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
+    device = torch.device(f'cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Device: {device}")
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
     
     
     train_graph_list,feat_size,class_names = Load_graphdata(f"{config['param']['graph_dataset_folder']}/train")
@@ -59,8 +60,8 @@ if __name__ == "__main__":
                      Conv2=args.Conv2,
                      image_feature=50176,
                      use_image_feats=args.use_image_feats).to(device)
-    
-    model= DDP(model,device_ids=[args.gpu_idx],output_device=args.gpu_idx)
+    pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total number of trainable parameters in the model: {pytorch_total_params}")
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate,weight_decay=args.wd)
     pbar = tqdm(num_epochs)

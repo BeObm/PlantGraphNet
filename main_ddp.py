@@ -28,6 +28,7 @@ class Trainer:
         optimizer: torch.optim.Optimizer,
         save_every: int,
         snapshot_path: str,
+        accumulation_steps: int = 2,
        
     ) -> None:
         self.gpu_id = int(os.environ["LOCAL_RANK"])
@@ -58,23 +59,47 @@ class Trainer:
         torch.save(snapshot, self.snapshot_path)
         print(f"Epoch {epoch} | Training snapshot saved at {self.snapshot_path}")
 
-    def train(self, max_epochs: int):
+    def train(self, max_epochs: int, accumulation_steps: int = 4):
         train_losses = []
         for epoch in range(self.epochs_run, max_epochs):
-            total_loss=0
+            total_loss = 0
             b_sz = len(next(iter(self.train_data))[0])
             print(f"[GPU{self.gpu_id}] Epoch {epoch} | Batchsize: {b_sz} | Steps: {len(self.train_data)}")
             self.train_data.sampler.set_epoch(epoch)
+            
+            # Initialize gradient accumulation counter
+            accumulation_counter = 0
+            
             for data in self.train_data:
                 source = data.to(self.gpu_id)
                 targets = data.y.to(self.gpu_id)
-                self.optimizer.zero_grad()
+                self.optimizer.zero_grad()  # Zero out the gradients before backpropagation
+                
                 output = self.model(source)
                 loss = F.cross_entropy(output, targets)
-                loss.backward()
-                self.optimizer.step()  
-                total_loss += loss.item()
-            train_losses.append(total_loss/len(self.train_data))
+                loss.backward()  # Backpropagate the loss
+                
+                # Accumulate gradients
+                accumulation_counter += 1
+                
+                # Perform the optimizer step every `accumulation_steps` batches
+                if accumulation_counter % accumulation_steps == 0:
+                    self.optimizer.step()  # Update model parameters
+                    self.optimizer.zero_grad()  # Zero out gradients after the optimizer step
+                    torch.cuda.empty_cache()
+                    accumulation_counter = 0  # Reset counter for next accumulation
+                
+                total_loss += loss.item()  # Track total loss
+
+            # If there are remaining accumulated gradients, perform an update
+            if accumulation_counter > 0:
+                self.optimizer.step()  # Perform final optimizer step
+                self.optimizer.zero_grad()  # Zero out gradients after final step
+                torch.cuda.empty_cache()
+
+            # Track average loss for the epoch
+            train_losses.append(total_loss / len(self.train_data))
+            
             if self.gpu_id == 0 and epoch % self.save_every == 0:
                 self._save_snapshot(epoch)
         return train_losses
@@ -104,6 +129,7 @@ if __name__ == "__main__":
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
     parser.add_argument("--Conv1", default=GENConv, help="Conv1")
     parser.add_argument("--Conv2", default=GATConv, help="Conv2")
+    parser.add_argument("--accumulation_steps ", default=2, help="accumulation_steps")
     # parser.add_argument("--gpu_idx", default=3, help="GPU  num")
     parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
     
@@ -143,9 +169,11 @@ if __name__ == "__main__":
                      image_feature=50176,
                      use_image_feats=args.use_image_feats)
     
+    model= DDP(model,device_ids=[args.gpu_idx],output_device=args.gpu_idx)
+
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
     
-    trainer = Trainer(model, train_loader, optimizer, save_every, snapshot_path="snapshot.pth")
+    trainer = Trainer(model, train_loader, optimizer, save_every, snapshot_path="snapshot.pth",accumulation_steps = args.accumulation_steps)
     train_losses = trainer.train(total_epochs)
     destroy_process_group()
     plot_and_save_training_performance(num_epochs=num_epochs,

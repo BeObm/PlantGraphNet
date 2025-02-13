@@ -10,20 +10,24 @@ from sklearn.metrics import classification_report
 class CNNModel(nn.Module):
     def __init__(self, num_classes=10):  # num_classes can be adjusted for your dataset
         super(CNNModel, self).__init__()
+        
+        a0=2048
         a=1024
         b=512
         c=256
         d=128
         e=64
+        f=32
+        g=16
 
         # 1 Convolutional Block
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
-        self.bn2 = nn.BatchNorm2d(64)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=a0, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(a0)
+        self.conv2 = nn.Conv2d(in_channels=a0, out_channels=a0, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(a0)
 
         # 2 Convolutional Block
-        self.conv3 = nn.Conv2d(in_channels=64, out_channels=a, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=a0, out_channels=a, kernel_size=3, stride=1, padding=1)
         self.bn3 = nn.BatchNorm2d(a)
         self.conv4 = nn.Conv2d(in_channels=a, out_channels=a, kernel_size=3, stride=1, padding=1)
         self.bn4 = nn.BatchNorm2d(a)
@@ -86,65 +90,65 @@ class CNNModel(nn.Module):
         self.bn4 = nn.BatchNorm2d(e)
 
         # 12 Convolutional Block
-        self.conv5 = nn.Conv2d(in_channels=e, out_channels=a, kernel_size=3, stride=1, padding=1)
-        self.bn5 = nn.BatchNorm2d(a)
-        self.conv6 = nn.Conv2d(in_channels=a, out_channels=a, kernel_size=3, stride=1, padding=1)
-        self.bn6 = nn.BatchNorm2d(a)
+        self.conv5 = nn.Conv2d(in_channels=e, out_channels=f, kernel_size=3, stride=1, padding=1)
+        self.bn5 = nn.BatchNorm2d(f)
+        self.conv6 = nn.Conv2d(in_channels=f, out_channels=f, kernel_size=3, stride=1, padding=1)
+        self.bn6 = nn.BatchNorm2d(f)
 
 
         # 13 Convolutional Block
-        self.conv1 = nn.Conv2d(in_channels=a, out_channels=b, kernel_size=3, stride=1, padding=1)
-        self.bn1 = nn.BatchNorm2d(b)
-        self.conv2 = nn.Conv2d(in_channels=b, out_channels=b, kernel_size=3, stride=1, padding=1)
-        self.bn2 = nn.BatchNorm2d(b)
+        self.conv1 = nn.Conv2d(in_channels=f, out_channels=f, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(f)
+        self.conv2 = nn.Conv2d(in_channels=f, out_channels=f, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(f)
 
         # 14 Convolutional Block
-        self.conv3 = nn.Conv2d(in_channels=b, out_channels=b, kernel_size=3, stride=1, padding=1)
-        self.bn3 = nn.BatchNorm2d(b)
-        self.conv4 = nn.Conv2d(in_channels=b, out_channels=b, kernel_size=3, stride=1, padding=1)
-        self.bn4 = nn.BatchNorm2d(b)
+        self.conv3 = nn.Conv2d(in_channels=f, out_channels=g, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(g)
+        self.conv4 = nn.Conv2d(in_channels=g, out_channels=g, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm2d(g)
 
         # 15 Convolutional Block
-        self.conv5 = nn.Conv2d(in_channels=b, out_channels=c, kernel_size=3, stride=1, padding=1)
-        self.bn5 = nn.BatchNorm2d(c)
-        self.conv6 = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=3, stride=1, padding=1)
-        self.bn6 = nn.BatchNorm2d(c)
+        self.conv5 = nn.Conv2d(in_channels=g, out_channels=g, kernel_size=3, stride=1, padding=1)
+        self.bn5 = nn.BatchNorm2d(g)
+        self.conv6 = nn.Conv2d(in_channels=g, out_channels=g, kernel_size=3, stride=1, padding=1)
+        self.bn6 = nn.BatchNorm2d(g)
 
-        # 16 Convolutional Block
-        self.conv1 = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=3, stride=1, padding=1)
-        self.bn1 = nn.BatchNorm2d(c)
-        self.conv2 = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=3, stride=1, padding=1)
-        self.bn2 = nn.BatchNorm2d(c)
+        # # 16 Convolutional Block
+        # self.conv1 = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=3, stride=1, padding=1)
+        # self.bn1 = nn.BatchNorm2d(c)
+        # self.conv2 = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=3, stride=1, padding=1)
+        # self.bn2 = nn.BatchNorm2d(c)
 
-        # 17 Convolutional Block
-        self.conv3 = nn.Conv2d(in_channels=c, out_channels=d, kernel_size=3, stride=1, padding=1)
-        self.bn3 = nn.BatchNorm2d(128)
-        self.conv4 = nn.Conv2d(in_channels=d, out_channels=d, kernel_size=3, stride=1, padding=1)
-        self.bn4 = nn.BatchNorm2d(d)
+        # # 17 Convolutional Block
+        # self.conv3 = nn.Conv2d(in_channels=c, out_channels=d, kernel_size=3, stride=1, padding=1)
+        # self.bn3 = nn.BatchNorm2d(128)
+        # self.conv4 = nn.Conv2d(in_channels=d, out_channels=d, kernel_size=3, stride=1, padding=1)
+        # self.bn4 = nn.BatchNorm2d(d)
 
-        # 18 Convolutional Block
-        self.conv5 = nn.Conv2d(in_channels=d, out_channels=d, kernel_size=3, stride=1, padding=1)
-        self.bn5 = nn.BatchNorm2d(d)
-        self.conv6 = nn.Conv2d(in_channels=d, out_channels=d, kernel_size=3, stride=1, padding=1)
-        self.bn6 = nn.BatchNorm2d(d)
+        # # 18 Convolutional Block
+        # self.conv5 = nn.Conv2d(in_channels=d, out_channels=d, kernel_size=3, stride=1, padding=1)
+        # self.bn5 = nn.BatchNorm2d(d)
+        # self.conv6 = nn.Conv2d(in_channels=d, out_channels=d, kernel_size=3, stride=1, padding=1)
+        # self.bn6 = nn.BatchNorm2d(d)
 
-        # 19 Convolutional Block
-        self.conv3 = nn.Conv2d(in_channels=d, out_channels=e, kernel_size=3, stride=1, padding=1)
-        self.bn3 = nn.BatchNorm2d(e)
-        self.conv4 = nn.Conv2d(in_channels=e, out_channels=e, kernel_size=3, stride=1, padding=1)
-        self.bn4 = nn.BatchNorm2d(e)
+        # # 19 Convolutional Block
+        # self.conv3 = nn.Conv2d(in_channels=d, out_channels=e, kernel_size=3, stride=1, padding=1)
+        # self.bn3 = nn.BatchNorm2d(e)
+        # self.conv4 = nn.Conv2d(in_channels=e, out_channels=e, kernel_size=3, stride=1, padding=1)
+        # self.bn4 = nn.BatchNorm2d(e)
 
-        # 20 Convolutional Block
-        self.conv5 = nn.Conv2d(in_channels=e, out_channels=e, kernel_size=3, stride=1, padding=1)
-        self.bn5 = nn.BatchNorm2d(e)
-        self.conv6 = nn.Conv2d(in_channels=e, out_channels=256, kernel_size=3, stride=1, padding=1)
-        self.bn6 = nn.BatchNorm2d(256)
+        # # 20 Convolutional Block
+        # self.conv5 = nn.Conv2d(in_channels=e, out_channels=e, kernel_size=3, stride=1, padding=1)
+        # self.bn5 = nn.BatchNorm2d(e)
+        # self.conv6 = nn.Conv2d(in_channels=e, out_channels=256, kernel_size=3, stride=1, padding=1)
+        # self.bn6 = nn.BatchNorm2d(256)
 
 
         # Fully Connected Layers
-        self.fc1 = nn.Linear(256 * 28 * 28, 64)  # Assuming input image size is 32x32
-        self.fc2 = nn.Linear(64, 64)
-        self.fc3 = nn.Linear(64, num_classes)
+        self.fc1 = nn.Linear(g * 28 * 28, num_classes)  # Assuming input image size is 32x32
+        self.fc2 = nn.Linear(num_classes, num_classes)
+        self.fc3 = nn.Linear(num_classes, num_classes)
 
         # Dropout
         self.dropout = nn.Dropout(0.5)
@@ -297,28 +301,46 @@ class GNNModel0(torch.nn.Module):
         return log_softmax(x, dim=1)
 
 
-def train(model, train_loader, optimizer, criterion, device):
+def train(model, train_loader, optimizer, criterion, device, accumulation_steps=4):
     model.train()
     total_loss = 0
-    total = 0
+    accumulation_counter = 0
 
     for data in train_loader:
-        data.to(device)
-        optimizer.zero_grad()
+        data = data.to(device)  # Ensure data is on the correct device
+        optimizer.zero_grad()  # Zero out the gradients before backpropagation
+        
         outputs = model(data)
         loss = criterion(outputs, data.y)
-        loss.backward()
-        optimizer.step()
+        print(f"Batch loss: {loss.item()}")
 
-        total_loss += loss.item()
-       
+        loss.backward()  # Backpropagate the loss
+        
+        # Accumulate gradients
+        accumulation_counter += 1
+        
+        # Perform the optimizer step every `accumulation_steps` batches
+        if accumulation_counter % accumulation_steps == 0:
+            optimizer.step()  # Update model parameters
+            optimizer.zero_grad()  # Zero out gradients after the optimizer step
+            torch.cuda.empty_cache()  # Clear unused memory from the GPU
+            accumulation_counter = 0  # Reset counter for next accumulation
 
-    avg_loss = total_loss / len(train_loader)
+        total_loss += loss.item()  # Track total loss
+
+    # If there are remaining accumulated gradients, perform an update
+    if accumulation_counter > 0:
+        optimizer.step()  # Perform final optimizer step
+        optimizer.zero_grad()  # Zero out gradients after final step
+        torch.cuda.empty_cache()  # Clear unused memory from the GPU
+
+    avg_loss = total_loss / len(train_loader)  # Average loss over all batches
     return avg_loss
+
 
 def test(model, loader,device,class_names):
     filename = f"{config['param']['result_folder']}/confusion_matrix.pdf"
-
+    print(f"class name size is {len(class_names)}")
     model.eval()
     y_true = []
     y_pred = []
@@ -329,7 +351,8 @@ def test(model, loader,device,class_names):
             pred = out.argmax(dim=1)
             y_true.extend(data.y.tolist())
             y_pred.extend(pred.tolist())
-
+            
+   
     plot_confusion_matrix(y_true=y_true,
                           y_pred=y_pred,
                           class_names=class_names,
