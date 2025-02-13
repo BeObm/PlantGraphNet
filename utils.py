@@ -12,6 +12,7 @@ from openpyxl import load_workbook
 from skimage import io
 from sklearn.metrics import confusion_matrix
 from torch_geometric.loader import DataLoader, ImbalancedSampler
+import concurrent.futures
 
 from Baselines.utils import *
 
@@ -336,21 +337,36 @@ def graphdata_loader(graph_list,args,type_data="train",ddp=True):
 
 def Load_graphdata(dataset_source_path):
     set_seed()
-    graph_list=[]
-    label_dict={}
+    graph_list = []
+    label_dict = {}
+    
     assert os.path.isdir(dataset_source_path), "The provided dataset_source_path is not a valid directory."
 
-    for file_name in os.listdir(dataset_source_path):
+    # Get all file paths in the directory
+    file_paths = [os.path.join(dataset_source_path, file_name) for file_name in os.listdir(dataset_source_path)]
 
-        data=torch.load(os.path.join(dataset_source_path,file_name))
-        if int(data.y.item()) not in label_dict.keys():
-            label_dict[int(data.y.item())] = data.label_name
-        graph_list.append(data)
-    
+    # Use ThreadPoolExecutor to load graphs in parallel
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # Load all graphs concurrently
+        results = executor.map(load_single_graph, file_paths)
+
+        for data in results:
+            if int(data.y.item()) not in label_dict.keys():
+                label_dict[int(data.y.item())] = data.label_name
+            graph_list.append(data)
+
+    # Sorting labels and printing dataset details
     labels = list(dict(sorted(label_dict.items())).values())
-    print("The dataset has been loaded. its contains: ",len(graph_list)," graphs.")
-    print("graph 1:", graph_list[1])
-    feat_size=data.x.shape[1]
+    print("The dataset has been loaded. It contains:", len(graph_list), "graphs.")
+    print("Graph 1:", graph_list[0])  # Adjusted for proper indexing
+    feat_size = data.x.shape[1]
 
-    print("The dataset has been loaded. its contains: ",len(labels)," classses: ", list(labels))   
-    return graph_list,feat_size, labels
+    print("The dataset has been loaded. It contains:", len(labels), "classes:", list(labels))   
+    return graph_list, feat_size, labels
+
+
+
+def load_single_graph(file_path):
+    """ Helper function to load a single graph from a file. """
+    data = torch.load(file_path)
+    return data

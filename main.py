@@ -19,7 +19,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=2, help="num_epochs")
-    parser.add_argument("--batch_size", type=int, default=8, help="batch_size")
+    parser.add_argument("--batch_size", type=int, default=4, help="batch_size")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
     parser.add_argument("--Conv1", default=GENConv, help="Conv1")

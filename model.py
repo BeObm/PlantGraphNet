@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import classification_report
+from torch.cuda.amp import autocast, GradScaler
 
 
 class CNNModel(nn.Module):
@@ -301,27 +302,37 @@ class GNNModel0(torch.nn.Module):
         return log_softmax(x, dim=1)
 
 
-def train(model, train_loader, optimizer, criterion, device, accumulation_steps=4):
+
+def train(model, train_loader, optimizer, criterion, device, accumulation_steps=1):
     model.train()
     total_loss = 0
     accumulation_counter = 0
+
+    # Initialize mixed precision scaler if using AMP
+    scaler = GradScaler()
 
     for data in train_loader:
         data = data.to(device)  # Ensure data is on the correct device
         optimizer.zero_grad()  # Zero out the gradients before backpropagation
         
-        outputs = model(data)
-        loss = criterion(outputs, data.y)
+        # Use automatic mixed precision (AMP) for forward pass
+        with autocast():
+            outputs = model(data)
+            loss = criterion(outputs, data.y)
+
         print(f"Batch loss: {loss.item()}")
 
-        loss.backward()  # Backpropagate the loss
-        
+        # Backpropagate the loss using mixed precision
+        scaler.scale(loss).backward()
+
         # Accumulate gradients
         accumulation_counter += 1
-        
+
         # Perform the optimizer step every `accumulation_steps` batches
         if accumulation_counter % accumulation_steps == 0:
-            optimizer.step()  # Update model parameters
+            # Unscale gradients and update model parameters
+            scaler.step(optimizer)
+            scaler.update()
             optimizer.zero_grad()  # Zero out gradients after the optimizer step
             torch.cuda.empty_cache()  # Clear unused memory from the GPU
             accumulation_counter = 0  # Reset counter for next accumulation
@@ -330,12 +341,14 @@ def train(model, train_loader, optimizer, criterion, device, accumulation_steps=
 
     # If there are remaining accumulated gradients, perform an update
     if accumulation_counter > 0:
-        optimizer.step()  # Perform final optimizer step
+        scaler.step(optimizer)  # Perform final optimizer step
+        scaler.update()
         optimizer.zero_grad()  # Zero out gradients after final step
         torch.cuda.empty_cache()  # Clear unused memory from the GPU
 
     avg_loss = total_loss / len(train_loader)  # Average loss over all batches
     return avg_loss
+
 
 
 def test(model, loader,device,class_names):

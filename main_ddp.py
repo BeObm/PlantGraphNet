@@ -42,7 +42,7 @@ class Trainer:
             print("Loading snapshot")
             self._load_snapshot(snapshot_path)
 
-        self.model = DDP(self.model, device_ids=[self.gpu_id],find_unused_parameters=True)
+        self.model = DDP(self.model, device_ids=[self.gpu_id])
 
     def _load_snapshot(self, snapshot_path):
         loc = f"cuda:{self.gpu_id}"
@@ -123,14 +123,13 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', default=4, type=int, help='Input batch size on each device (default: 16)')
     parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
     parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
-    parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
+    parser.add_argument("--hidden_dim", default=4, type=int, help="hidden_dim")
     parser.add_argument("--total_epochs", type=int, default=2, help="num_epochs")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
     parser.add_argument("--Conv1", default=GENConv, help="Conv1")
     parser.add_argument("--Conv2", default=GATConv, help="Conv2")
-    parser.add_argument("--accumulation_steps ", default=2, help="accumulation_steps")
-    # parser.add_argument("--gpu_idx", default=3, help="GPU  num")
+    parser.add_argument("--accumulation_steps", default=2, help="accumulation_steps")
     parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
     
     args = parser.parse_args()
@@ -169,7 +168,6 @@ if __name__ == "__main__":
                      image_feature=50176,
                      use_image_feats=args.use_image_feats)
     
-    model= DDP(model,device_ids=[args.gpu_idx],output_device=args.gpu_idx)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
     
