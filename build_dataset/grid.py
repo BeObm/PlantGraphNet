@@ -35,7 +35,7 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
           image_files = shuffle_dataset([f for f in os.listdir(class_path) if f.lower().endswith(('.png', '.jpg', '.jpeg','.tiff'))])[:nb_per_class]
         a = 1
         with multiprocessing.Pool() as pool:
-            pool.starmap(image_to_graph, [(os.path.join(class_path, img_file), label, class_folder, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt",use_image_feats) for idx,img_file in enumerate(image_files)])
+            pool.starmap(image_to_graph, [(os.path.join(class_path, img_file), label, class_folder, connectivity, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt",use_image_feats) for idx,img_file in enumerate(image_files)])
             
         # for idx,img_file in enumerate(image_files):
         #     img_path = os.path.join(class_path, img_file)
@@ -50,7 +50,7 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
 
 
 
-def image_to_graph(img_path, label,label_name,apply_transforms=True, output_path="data/graph_data.pt", use_image_feats=False):
+def image_to_graph(img_path, label,label_name,connectivity,apply_transforms=True, output_path="data/graph_data.pt", use_image_feats=False):
     img = Image.open(img_path).convert('RGB')
 
     if apply_transforms:
@@ -59,9 +59,9 @@ def image_to_graph(img_path, label,label_name,apply_transforms=True, output_path
     else:
         transform_pipeline = transform(type_data="test")
         img = transform_pipeline(img)
-
+        
         # img = torch.from_numpy(np.transpose(img, (2, 0, 1))).to(dtype=torch.float)
-    x, edge_index = get_node_features_and_edge_list(img)
+    x, edge_index = get_node_features_and_edge_list(img,connectivity)
     y = torch.tensor([label], dtype=torch.long)
     if use_image_feats==True:
          data=Data(x=x, edge_index=edge_index, y=y, image_features=img.unsqueeze(dim=0),label_name=label_name)
@@ -70,7 +70,7 @@ def image_to_graph(img_path, label,label_name,apply_transforms=True, output_path
     print(data)
     torch.save(data, output_path)
 
-def get_node_features_and_edge_list(image):
+def get_node_features_and_edge_list(image,connectivity):
     """
     Convert an image into a graph representation using an edge list.
     Parameters:
@@ -88,7 +88,7 @@ def get_node_features_and_edge_list(image):
     node_features = image.view(-1, channels)  # Shape: (num_pixels, channels)
 
     # Create an edge list for the graph
-    edges = compute_edges(height, width)
+    edges = compute_edges(height, width,connectivity)
 
     return  node_features, edges
 
@@ -100,22 +100,30 @@ def validate_image(image):
     return image
 
 
-def compute_edges(height, width):
+def compute_edges(height, width,connectivity):
     """Generate an edge list for a graph based on 8-connectivity."""
     edges = []
     for i in range(height):
         for j in range(width):
             current_index = pixel_to_index(i, j, width)
-            neighbors = [
-                (i - 1, j),  # Top
-                (i + 1, j),  # Bottom
-                (i, j - 1),  # Left
-                (i, j + 1),  # Right
-                (i - 1, j - 1),  # Top-left
-                (i - 1, j + 1),  # Top-right
-                (i + 1, j - 1),  # Bottom-left
-                (i + 1, j + 1),  # Bottom-right
-            ]
+            if connectivity == '8-connectivity':
+                neighbors = [
+                    (i - 1, j),  # Top
+                    (i + 1, j),  # Bottom
+                    (i, j - 1),  # Left
+                    (i, j + 1),  # Right
+                    (i - 1, j - 1),  # Top-left
+                    (i - 1, j + 1),  # Top-right
+                    (i + 1, j - 1),  # Bottom-left
+                    (i + 1, j + 1),  # Bottom-right
+                ]
+            elif connectivity == '4-connectivity':
+                neighbors = [
+                    (i - 1, j),  # Top
+                    (i + 1, j),  # Bottom
+                    (i, j - 1),  # Left
+                    (i, j + 1),  # Right
+                ]
             # Collect valid edges
             for ni, nj in neighbors:
                 if 0 <= ni < height and 0 <= nj < width:  # Ensure within bounds

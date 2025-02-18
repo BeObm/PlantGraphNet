@@ -193,14 +193,14 @@ class GNNModel(torch.nn.Module):
 
         # Graph feature extraction (upgraded to more advanced GNN layers like GAT or GIN)
 
-        self.graph_conv1 = Conv1(num_node_features, hidden_dim * 2)
-        self.batch_norm1= torch.nn.BatchNorm1d(hidden_dim*2)
+        self.graph_conv1 = Conv1(num_node_features, hidden_dim * 1)
+        self.batch_norm1= torch.nn.BatchNorm1d(hidden_dim)
         self.act=torch.nn.ReLU()
         self.use_image_feats=use_image_feats
             
         #
-        self.graph_conv2 = Conv2(hidden_dim * 2, hidden_dim)
-        self.batch_norm2= torch.nn.BatchNorm1d(hidden_dim)
+        # self.graph_conv2 = Conv2(hidden_dim * 2, hidden_dim)
+        # self.batch_norm2= torch.nn.BatchNorm1d(hidden_dim)
 
       
         # Linear layers for combining graph features and image features
@@ -243,9 +243,9 @@ class GNNModel(torch.nn.Module):
         node_features = self.batch_norm1(node_features)
         node_features = self.act(node_features)
 
-        node_features = self.graph_conv2(node_features, edge_index)
-        node_features = self.batch_norm2(node_features)
-        node_features = self.act(node_features)
+        # node_features = self.graph_conv2(node_features, edge_index)
+        # node_features = self.batch_norm2(node_features)
+        # node_features = self.act(node_features)
 
         node_features = global_add_pool(node_features, batch)  # Global pooling for graph features
         node_features = self.node_feature_fc(node_features)
