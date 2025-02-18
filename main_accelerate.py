@@ -8,7 +8,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from model import *
 import os
 import gc
-from accelerate import Accelerator
+from accelerate import Accelerator, InitProcessGroupKwargs
 
    
 if __name__ == "__main__":
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cudnn.allow_tf32 = False
     
-    accelerator = Accelerator()
+    accelerator = Accelerator(kwargs_handlers=[InitProcessGroupKwargs(backend="gloo")])
     
     train_graph_list,feat_size,class_names = Load_graphdata(f"{config['param']['graph_dataset_folder']}/train")
     test_graph_list,_,_ = Load_graphdata(f"{config['param']['graph_dataset_folder']}/test")
@@ -71,24 +71,30 @@ if __name__ == "__main__":
     device = accelerator.device
     model, optimizer, train_loader, test_loader = accelerator.prepare(model, optimizer, train_loader,test_loader)
 
+
     for epoch in range(num_epochs):
-        loss = train(model, train_loader, optimizer, criterion)
+        loss = train_function(model=model,
+                              dataloader=train_loader, 
+                              optimizer=optimizer, 
+                              criterion=criterion,
+                              accelerator=accelerator)
         train_losses.append(loss)
         if loss <= best_loss:
             best_loss = loss
             pbar.set_description(f"Training model.|Best loss={round(best_loss, 5)}")
         pbar.write(f'Epoch [{epoch}/{num_epochs}]: Loss: {round(loss, 5)}')
         pbar.update(1)
+        
     print(f"Time taken to train the model: { datetime.now() - start_time}")
 
     plot_and_save_training_performance(num_epochs=num_epochs,
                                        losses=train_losses,
                                        folder_name=config['param']['result_folder'])
 
-    cls_report = test(model=model,
-                        loader=test_loader,
-                        device=device,
-                        class_names=class_names)
+    cls_report = test_function(accelerator=accelerator,
+                               model=model,
+                               test_loader=test_loader,
+                               class_names=class_names)
 
     cr = pd.DataFrame(cls_report).transpose()
     cr.to_excel( f"{config['param']['result_folder']}/result_for_GNN_Model.xlsx")

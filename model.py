@@ -301,46 +301,44 @@ class GNNModel0(torch.nn.Module):
 
         return log_softmax(x, dim=1)
 
-
-
-def train(model, train_loader, optimizer, criterion):
+def train_function(model, dataloader, criterion, optimizer,accelerator):
     model.train()
-    total_loss = 0
+    loss_all = 0
+    for batch in dataloader:
+        optimizer.zero_grad()
+        output = model(batch)
+        loss = criterion(output, batch.y)
+        accelerator.backward(loss)
+        loss_all += batch.num_graphs * loss.item()
+        optimizer.step()
+    return loss_all / len(dataloader) 
 
-    # Initialize mixed precision scaler if using AMP
-    scaler = GradScaler()
 
-    for data in train_loader:
-        data = data.to(device)  # Ensure data is on the correct device
-        optimizer.zero_grad()  # Zero out the gradients before backpropagation
-        
-        # Use automatic mixed precision (AMP) for forward pass
-        with autocast():
-            outputs = model(data)
-            loss = criterion(outputs, data.y)
+@torch.no_grad()
+def test_function(accelerator, model, test_loader, class_names):
+    model.eval()
+    true_labels = []
+    pred_labels = []
+    filename = f"{config['param']['result_folder']}/confusion_matrix.pdf"
+    for data in test_loader:  # Iterate in batches over the training/test dataset.
+        targets= data.y
+        pred = model(data).max(dim=1)[1]
+        all_targets =accelerator.gather(targets)
+        all_pred = accelerator.gather(pred)
+        true_labels.extend(all_targets.detach().cpu().numpy())
+        pred_labels.extend(all_pred.detach().cpu().numpy())
+    
+    plot_confusion_matrix(y_true=true_labels,
+                          y_pred=pred_labels,
+                          class_names=class_names,
+                          file_name=filename
+                          )
+    print(f"Confusion Matrix for the GNN model is saved in {filename}")
 
-        print(f"Batch loss: {loss.item()}")
+    cls_report = classification_report(true_labels, pred_labels, target_names=class_names, output_dict=True)
 
-        # Backpropagate the loss using mixed precision
-        scaler.scale(loss).backward()
-
-        # Accumulate gradients
-        accumulation_counter += 1
-
-       
-
-        total_loss += loss.item()  # Track total loss
-
-    # If there are remaining accumulated gradients, perform an update
-    if accumulation_counter > 0:
-        scaler.step(optimizer)  # Perform final optimizer step
-        scaler.update()
-        optimizer.zero_grad()  # Zero out gradients after final step
-        torch.cuda.empty_cache()  # Clear unused memory from the GPU
-
-    avg_loss = total_loss / len(train_loader)  # Average loss over all batches
-    return avg_loss
-
+    return cls_report    
+    
 
 
 def test(model, loader,device,class_names):
