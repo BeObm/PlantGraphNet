@@ -323,7 +323,7 @@ def graphdata_loader(graph_list,args,type_data="train",ddp=True):
         if type_data == "train":
             dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler)
         else:
-            dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=False, num_workers=os.cpu_count())
+            dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler)
 
     else:
         sampler=ImbalancedSampler(graph_list)

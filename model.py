@@ -376,3 +376,29 @@ def test(model, loader,device,class_names):
     cls_report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
 
     return cls_report
+
+def test_ddp(model, loader,class_names):
+    filename = f"{config['param']['result_folder']}/confusion_matrix.pdf"
+    print(f"class name size is {len(class_names)}")
+    model.eval()
+    y_true = []
+    y_pred = []
+    with torch.no_grad():
+        for data in loader:
+           
+            out = model(data)
+            pred = out.argmax(dim=1)
+            y_true.extend(data.y.tolist())
+            y_pred.extend(pred.tolist())
+            
+   
+    plot_confusion_matrix(y_true=y_true,
+                          y_pred=y_pred,
+                          class_names=class_names,
+                          file_name=filename
+                          )
+    print(f"Confusion Matrix for the GNN model is saved in {filename}")
+
+    cls_report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
+
+    return cls_report

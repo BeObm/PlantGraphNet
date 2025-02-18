@@ -37,6 +37,7 @@ class Trainer:
         self.optimizer = optimizer
         self.save_every = save_every
         self.epochs_run = 0
+        self.train_losses = []
         self.snapshot_path = snapshot_path
         if os.path.exists(snapshot_path):
             print("Loading snapshot")
@@ -49,18 +50,21 @@ class Trainer:
         snapshot = torch.load(snapshot_path, map_location=loc)
         self.model.load_state_dict(snapshot["MODEL_STATE"])
         self.epochs_run = snapshot["EPOCHS_RUN"]
+        self.train_losses = snapshot["TRAIN_LOSSES"]
         print(f"Resuming training from snapshot at Epoch {self.epochs_run}")
     
-    def _save_snapshot(self, epoch):
+    def _save_snapshot(self, epoch,train_losses):
         snapshot = {
             "MODEL_STATE": self.model.module.state_dict(),
             "EPOCHS_RUN": epoch,
+            "TRAIN_LOSSES": train_losses,
+            
         }
         torch.save(snapshot, self.snapshot_path)
         print(f"Epoch {epoch} | Training snapshot saved at {self.snapshot_path}")
 
     def train(self, max_epochs: int, accumulation_steps: int = 4):
-        train_losses = []
+        train_losses = self.train_losses
         for epoch in range(self.epochs_run, max_epochs):
             total_loss = 0
             b_sz = len(next(iter(self.train_data))[0])
@@ -101,7 +105,8 @@ class Trainer:
             train_losses.append(total_loss / len(self.train_data))
             
             if self.gpu_id == 0 and epoch % self.save_every == 0:
-                self._save_snapshot(epoch)
+                self._save_snapshot(epoch,train_losses)
+                
         return train_losses
 
 
@@ -119,7 +124,7 @@ def prepare_dataloader(dataset, batch_size: int):
 if __name__ == "__main__": 
     import argparse
     parser = argparse.ArgumentParser(description='DP-based GNN training')
-    parser.add_argument('--save_every', default=10,type=int, help='How often to save a snapshot')
+    parser.add_argument('--save_every', default=1,type=int, help='How often to save a snapshot')
     parser.add_argument('--batch_size', default=4, type=int, help='Input batch size on each device (default: 16)')
     parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
     parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
@@ -173,16 +178,15 @@ if __name__ == "__main__":
     
     trainer = Trainer(model, train_loader, optimizer, save_every, snapshot_path="snapshot.pth",accumulation_steps = args.accumulation_steps)
     train_losses = trainer.train(total_epochs)
-    destroy_process_group()
+    
     plot_and_save_training_performance(num_epochs=num_epochs,
                                        losses=train_losses,
                                        folder_name=config['param']['result_folder'])
 
-    cls_report = test(model=model,
+    cls_report = test_ddp(model=model,
                         loader=test_loader,
-                        device=torch.device("cuda" if torch.cuda.is_available() else 'cpu'),
                         class_names=class_names)
-
+    destroy_process_group()
     cr = pd.DataFrame(cls_report).transpose()
     cr.to_excel( f"{config['param']['result_folder']}/result_for_GNN_Model.xlsx")
     

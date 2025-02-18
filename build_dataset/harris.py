@@ -38,7 +38,7 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
         a = 1
         
         with multiprocessing.Pool() as pool:
-            pool.starmap(image_to_graph, [(os.path.join(class_path, img_file), label, class_folder, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt",use_image_feats) for idx,img_file in enumerate(image_files)])
+            pool.starmap(image_to_graph, [(os.path.join(class_path, img_file), label, class_folder, connectivity, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt",use_image_feats) for idx,img_file in enumerate(image_files)])
        
         # for idx,img_file in enumerate(image_files):
         #     img_path = os.path.join(class_path, img_file)
@@ -95,12 +95,12 @@ def image_to_graph(image_path, label,label_name,connectivity,apply_transforms=Tr
 
         # Neighbor coordinate offsets for chosen connectivity
         neighbors = []
-        if connectivity == '8-connectivity':
+        if connectivity =='8-connectivity':
             neighbors = [
                 (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1),
                 (i - 1, j - 1), (i - 1, j + 1), (i + 1, j - 1), (i + 1, j + 1)
             ]
-        elif connectivity == '4-connectivity':
+        elif connectivity =='4-connectivity':
             neighbors = [
                 (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)
             ]
