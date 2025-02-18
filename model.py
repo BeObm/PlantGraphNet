@@ -303,10 +303,9 @@ class GNNModel0(torch.nn.Module):
 
 
 
-def train(model, train_loader, optimizer, criterion, device, accumulation_steps=1):
+def train(model, train_loader, optimizer, criterion):
     model.train()
     total_loss = 0
-    accumulation_counter = 0
 
     # Initialize mixed precision scaler if using AMP
     scaler = GradScaler()
@@ -328,14 +327,7 @@ def train(model, train_loader, optimizer, criterion, device, accumulation_steps=
         # Accumulate gradients
         accumulation_counter += 1
 
-        # Perform the optimizer step every `accumulation_steps` batches
-        if accumulation_counter % accumulation_steps == 0:
-            # Unscale gradients and update model parameters
-            scaler.step(optimizer)
-            scaler.update()
-            optimizer.zero_grad()  # Zero out gradients after the optimizer step
-            torch.cuda.empty_cache()  # Clear unused memory from the GPU
-            accumulation_counter = 0  # Reset counter for next accumulation
+       
 
         total_loss += loss.item()  # Track total loss
 

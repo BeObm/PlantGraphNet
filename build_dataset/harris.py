@@ -53,7 +53,7 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
 
 
 
-def image_to_graph(image_path, label,label_name,connectivity,apply_transforms=True, output_path="dataset/test_graph_data.pt",k=0.04, threshold=0.01, use_image_feats=False):
+def image_to_graph(image_path, label,label_name,connectivity,apply_transforms, output_path, use_image_feats, k=0.04, threshold=0.01):
     """
     Build a PyTorch graph from an image based on Harris corner detection.
 
@@ -105,7 +105,7 @@ def image_to_graph(image_path, label,label_name,connectivity,apply_transforms=Tr
                 (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)
             ]
         else:
-            raise ValueError(f"Invalid connectivity {connectivity}. Choose '4-connectivity' or '8-connectivity'.")
+            raise ValueError(f"Invalid connectivity '{connectivity}'. Choose '4-connectivity' or '8-connectivity'.")
 
         # Process each neighbor
         for ni, nj in neighbors:

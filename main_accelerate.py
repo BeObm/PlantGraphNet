@@ -8,7 +8,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from model import *
 import os
 import gc
-
+from accelerate import Accelerator
 
    
 if __name__ == "__main__":
@@ -28,24 +28,21 @@ if __name__ == "__main__":
     parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
     
     args = parser.parse_args()
+    
+    start_time=datetime.now()
 
     create_config_file(args.type_graph, args.connectivity)
-    device = torch.device(f'cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Device: {device}")
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cudnn.allow_tf32 = False
     
+    accelerator = Accelerator()
     
     train_graph_list,feat_size,class_names = Load_graphdata(f"{config['param']['graph_dataset_folder']}/train")
     test_graph_list,_,_ = Load_graphdata(f"{config['param']['graph_dataset_folder']}/test")
-    
-    gc.collect()
-    torch.cuda.empty_cache()     
 
-    start_time=datetime.now()
-    train_loader= graphdata_loader(train_graph_list,args=args,type_data="train", ddp=False)
-    test_loader=graphdata_loader(test_graph_list,args=args,type_data="test", ddp=False)
-    
+    train_loader= graphdata_loader(train_graph_list,args=args,type_data="train")
+    test_loader=graphdata_loader(test_graph_list,args=args,type_data="test")
+
     
     input_dim = feat_size
     hidden_dim = args.hidden_dim
@@ -59,7 +56,9 @@ if __name__ == "__main__":
                      Conv1=args.Conv1,
                      Conv2=args.Conv2,
                      image_feature=50176,
-                     use_image_feats=args.use_image_feats).to(device)
+                     use_image_feats=args.use_image_feats)
+    
+    
     pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total number of trainable parameters in the model: {pytorch_total_params}")
     criterion = nn.CrossEntropyLoss()
@@ -69,8 +68,11 @@ if __name__ == "__main__":
     best_loss=99999
     train_losses = []
     train_accuracies = []
+    device = accelerator.device
+    model, optimizer, train_loader, test_loader = accelerator.prepare(model, optimizer, train_loader,test_loader)
+
     for epoch in range(num_epochs):
-        loss = train(model, train_loader, optimizer, criterion,device=device)
+        loss = train(model, train_loader, optimizer, criterion)
         train_losses.append(loss)
         if loss <= best_loss:
             best_loss = loss

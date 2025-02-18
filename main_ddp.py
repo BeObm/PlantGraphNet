@@ -107,7 +107,7 @@ class Trainer:
             if self.gpu_id == 0 and epoch % self.save_every == 0:
                 self._save_snapshot(epoch,train_losses)
                 
-        return train_losses
+        return train_losses,self.model
 
 
 def prepare_dataloader(dataset, batch_size: int):
@@ -157,7 +157,6 @@ if __name__ == "__main__":
     input_dim = feat_size
     hidden_dim = args.hidden_dim
     output_dim = 10
-    num_epochs = args.total_epochs
     batch_size = args.batch_size
     
     
@@ -177,11 +176,12 @@ if __name__ == "__main__":
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
     
     trainer = Trainer(model, train_loader, optimizer, save_every, snapshot_path="snapshot.pth",accumulation_steps = args.accumulation_steps)
-    train_losses = trainer.train(total_epochs)
+    train_losses,model = trainer.train(total_epochs)
+    print(f"train loss size is {len(train_losses)} and number of epochs is {total_epochs}")
     
-    plot_and_save_training_performance(num_epochs=num_epochs,
-                                       losses=train_losses,
-                                       folder_name=config['param']['result_folder'])
+    # plot_and_save_training_performance(num_epochs=total_epochs,
+    #                                    losses=train_losses,
+    #                                    folder_name=config['param']['result_folder'])
 
     cls_report = test_ddp(model=model,
                         loader=test_loader,
