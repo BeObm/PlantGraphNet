@@ -22,7 +22,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_size", type=int, default=0, help="number  of images to use for training per class, 0 means all")
     parser.add_argument("--hidden_dim", default=256, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
-    parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
+    parser.add_argument("--batch_size", type=int, default=32*4, help="batch_size")
     parser.add_argument("--learning_rate", type=float, default=0.0001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
     parser.add_argument("--criterion", default="CrossEntropy", help="criterion")
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     
     model, optimizer, train_loader, test_loader = accelerator.prepare(model, optimizer, train_loader,test_loader)
 
-    train_model(model,accelerator, train_loader, criterion, optimizer, args=args)
+    model=train_model(model,accelerator, train_loader, criterion, optimizer, args=args)
     # torch.save(model.state_dict(), saved_model_path)
     end_time = datetime.now()
     cl_report = test_model(model, accelerator,test_loader, class_names,args=args)

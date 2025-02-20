@@ -69,7 +69,6 @@ def train_model(model,accelerator, train_loader, criterion, optimizer, args):
     # Save training stats
     plot_and_save_training_performance(num_epochs=args.num_epochs,
                                        losses=train_loss_values,
-                                       accuracies=train_accuracy_values,
                                        folder_name=args.result_dir)
 
     return model
