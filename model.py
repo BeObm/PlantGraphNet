@@ -188,20 +188,22 @@ class CNNModel(nn.Module):
 class GNNModel(torch.nn.Module):
     # Original image input feature count
 
-    def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2,image_feature=50176,use_image_feats=False):
+    def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2,image_feature=224,use_image_feats=False):
         super(GNNModel, self).__init__()
 
         # Graph feature extraction (upgraded to more advanced GNN layers like GAT or GIN)
 
-        self.graph_conv1 = Conv1(num_node_features, hidden_dim * 1)
+        self.graph_conv1 = Conv1(num_node_features, hidden_dim )
         self.batch_norm1= torch.nn.BatchNorm1d(hidden_dim)
         self.act=torch.nn.ReLU()
         self.use_image_feats=use_image_feats
             
         #
-        # self.graph_conv2 = Conv2(hidden_dim * 2, hidden_dim)
-        # self.batch_norm2= torch.nn.BatchNorm1d(hidden_dim)
+        self.graph_conv2 = Conv2(hidden_dim, hidden_dim)
+        self.batch_norm2= torch.nn.BatchNorm1d(hidden_dim)
 
+        self.graph_conv3 = Conv2(hidden_dim , hidden_dim)
+        self.batch_norm2= torch.nn.BatchNorm1d(hidden_dim)
       
         # Linear layers for combining graph features and image features
         self.node_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)  # Node feature transformation
@@ -243,10 +245,14 @@ class GNNModel(torch.nn.Module):
         node_features = self.batch_norm1(node_features)
         node_features = self.act(node_features)
 
-        # node_features = self.graph_conv2(node_features, edge_index)
-        # node_features = self.batch_norm2(node_features)
-        # node_features = self.act(node_features)
+        node_features = self.graph_conv2(node_features, edge_index)
+        node_features = self.batch_norm2(node_features)
+        node_features = self.act(node_features)
 
+        node_features = self.graph_conv3(node_features, edge_index)
+        node_features = self.batch_norm2(node_features)
+        node_features = self.act(node_features)
+        
         node_features = global_add_pool(node_features, batch)  # Global pooling for graph features
         node_features = self.node_feature_fc(node_features)
 
@@ -339,6 +345,7 @@ def test_function(accelerator, model, test_loader, class_names):
 
     return cls_report    
     
+
 
 
 def test(model, loader,device,class_names):

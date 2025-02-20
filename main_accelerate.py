@@ -13,12 +13,14 @@ from accelerate import Accelerator, InitProcessGroupKwargs
    
 if __name__ == "__main__":
     set_seed()
+    accelerator = Accelerator(kwargs_handlers=[InitProcessGroupKwargs(backend="gloo")])
+
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
-    parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
-    parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
-    parser.add_argument("--num_epochs", type=int, default=50, help="num_epochs")
+    parser.add_argument("--type_graph", default="harris", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
+    parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
+    parser.add_argument("--hidden_dim", default=32, type=int, help="hidden_dim")
+    parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=4, help="batch_size")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
@@ -32,10 +34,7 @@ if __name__ == "__main__":
     start_time=datetime.now()
 
     create_config_file(args.type_graph, args.connectivity)
-    torch.backends.cuda.matmul.allow_tf32 = False
-    torch.backends.cudnn.allow_tf32 = False
-    
-    accelerator = Accelerator(kwargs_handlers=[InitProcessGroupKwargs(backend="gloo")])
+   
     
     train_graph_list,feat_size,class_names = Load_graphdata(f"{config['param']['graph_dataset_folder']}/train")
     test_graph_list,_,_ = Load_graphdata(f"{config['param']['graph_dataset_folder']}/test")
@@ -49,7 +48,7 @@ if __name__ == "__main__":
     output_dim = 10
     num_epochs = args.num_epochs
     batch_size = args.batch_size
-
+    set_seed()
     model = GNNModel(num_node_features=input_dim,
                      hidden_dim=hidden_dim,
                      num_classes=output_dim,

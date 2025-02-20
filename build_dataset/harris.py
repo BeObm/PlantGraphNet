@@ -87,7 +87,7 @@ def image_to_graph(image_path, label,label_name,connectivity,apply_transforms, o
     corner_positions = np.argwhere(corners == 1)  # Get row, col indices
     corner_indices = {tuple(pos): idx for idx, pos in enumerate(corner_positions)}
     node_features = corner_positions  # Node features are the (x, y) positions
-
+    label = torch.tensor([label], dtype=torch.long)
     # Step 5: Create edges based on neighbor connectivity
     edges = []
     for pos in corner_positions:
