@@ -1,7 +1,7 @@
 import argparse
 import pandas as pd
 import os
-
+from accelerate import Accelerator, InitProcessGroupKwargs
 import torch.nn as nn
 from model import CNNModel
 import torch
@@ -14,6 +14,7 @@ from utils import *
 
 if __name__ == "__main__":
     set_seed()
+    accelerator = Accelerator(kwargs_handlers=[InitProcessGroupKwargs(backend="gloo")])
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="baseline", choices=["baseline", "Our_CNN_Model"])
@@ -29,7 +30,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    args.device = torch.device(f'cuda:{args.gpu_idx}' if torch.cuda.is_available() else 'cpu')
     num_classes, train_loader, class_names = load_data(dataset_dir="dataset/images/train", batch_size=args.batch_size, num_samples_per_class=args.dataset_size,type_data="train")
     _, test_loader, _ = load_data(dataset_dir="dataset/images/test", batch_size=args.batch_size,num_samples_per_class=args.dataset_size,type_data="test")
 
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         model = CNNModel()
         args.model_name = "New_CNN_Model"
         
-    print(f"Model: {args.model_name} | device: {args.device}")
+    print(f"Model: {args.model_name} | device: {accelerator.device}")
 
     if args.dataset_size == 0:
         args.result_dir = f"results/CNN Models/full_dataset/{args.model_name}"
@@ -56,14 +56,17 @@ if __name__ == "__main__":
             print(f"Loaded saved model from {saved_model_path}")
         except:
             pass
-    model = model.to(args.device)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=0.0001)
-    model= train_model(model, train_loader, test_loader, criterion, optimizer, args=args)
-    torch.save(model.state_dict(), saved_model_path)
+    
+    
+    model, optimizer, train_loader, test_loader = accelerator.prepare(model, optimizer, train_loader,test_loader)
+
+    train_model(model,accelerator, train_loader, criterion, optimizer, args=args)
+    # torch.save(model.state_dict(), saved_model_path)
     end_time = datetime.now()
-    cl_report = test_model(model, test_loader, class_names,args=args)
+    cl_report = test_model(model, accelerator,test_loader, class_names,args=args)
 
     cr = pd.DataFrame(cl_report).transpose()
     cr.to_excel(f"{args.result_dir}/result_for_{args.model_name}.xlsx")

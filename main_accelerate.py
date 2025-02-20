@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_graph", default="harris", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
+    parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
     parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=32, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
@@ -54,7 +54,7 @@ if __name__ == "__main__":
                      num_classes=output_dim,
                      Conv1=args.Conv1,
                      Conv2=args.Conv2,
-                     image_feature=50176,
+                     image_feature=224,
                      use_image_feats=args.use_image_feats)
     
     

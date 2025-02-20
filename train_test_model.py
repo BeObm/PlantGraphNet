@@ -8,8 +8,8 @@ from tqdm import tqdm
 
 
 
-def train_model(model, train_loader, test_loader, criterion, optimizer, args):
-    device = args.device
+def train_model(model,accelerator, train_loader, criterion, optimizer, args):
+    # device = args.device
     # Lists to store loss and accuracy values for plotting
     train_loss_values = []
     train_accuracy_values = []
@@ -21,13 +21,13 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, args):
         running_loss = 0.0
 
         for inputs, labels in train_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
+            # inputs, labels = inputs.to(device), labels.to(device)
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
-            loss.backward()
+            accelerator.backward(loss)
+            running_loss += float(loss.item())*inputs.size(0)
             optimizer.step()
-            running_loss += loss.item()
 
         model.eval()
 
@@ -40,11 +40,13 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, args):
 
         with torch.no_grad():
             for inputs, labels in train_loader:
-                inputs, labels = inputs.to(device), labels.to(device)
+                # inputs, labels = inputs.to(device), labels.to(device)
                 outputs = model(inputs)
                 _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
+                all_predict=accelerator.gather(predicted)
+                all_labels=accelerator.gather(labels)
+                total += all_labels.size(0)
+                correct += (all_predict == all_labels).sum().item()
 
         train_accuracy = 100 * correct / total
         train_accuracy_values.append(train_accuracy)
@@ -72,20 +74,22 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, args):
 
     return model
 
-def test_model(model, test_loader, class_names,args):
-    device = args.device
-    model = model.to(device)    
+def test_model(model, accelerator, test_loader, class_names,args):
+    # device = args.device
+    # model = model.to(device)    
     model.eval()
     y_pred = []
     y_true = []
 
     with torch.no_grad():
         for inputs, labels in test_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
+            # inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
             _, predicted = torch.max(outputs.data, 1)
-            y_pred.append(predicted.cpu())
-            y_true.append(labels.cpu())
+            all_predict=accelerator.gather(predicted)
+            all_labels=accelerator.gather(labels)   
+            y_pred.append(all_predict.cpu())
+            y_true.append(all_labels.cpu())
 
     # Concatenate the list of tensors into a single tensor for y_pred and y_true
     y_pred = torch.cat(y_pred)
