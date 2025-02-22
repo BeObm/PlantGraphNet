@@ -1,4 +1,6 @@
-
+from collections import defaultdict
+import torch
+import numpy as np
 import csv
 import os.path as osp
 from configparser import ConfigParser
@@ -11,16 +13,20 @@ import seaborn as sns
 from openpyxl import load_workbook
 from skimage import io
 from sklearn.metrics import confusion_matrix
+from torchvision import datasets, transforms
 from torch_geometric.loader import DataLoader, ImbalancedSampler
 import concurrent.futures
-
-from Baselines.utils import *
+from torch.utils.data import  SubsetRandomSampler,WeightedRandomSampler
+from torch.utils.data import DataLoader as image_DataLoader
+import random
+import os
+import shutil
 
 config = ConfigParser()
 RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
 project_root_dir = os.path.abspath(os.getcwd())
 
-def create_config_file(type_graph,connectivity):
+def create_config_file(dataset_name,type_graph,connectivity):
     configs_folder = osp.join(project_root_dir, f'results/GNN_Models/{type_graph}/{RunCode}')
     os.makedirs(configs_folder, exist_ok=True)
     config_filename = f"{configs_folder}/ConfigFile_{RunCode}.ini"
@@ -31,7 +37,7 @@ def create_config_file(type_graph,connectivity):
         'config_filename': config_filename,
         'type_graph': type_graph,
         "graph_filename":graph_filename,
-        "train_image_dataset_root": f"{project_root_dir}/dataset/images/train",
+        "train_image_dataset_root": f"{project_root_dir}/dataset/images/{dataset_name}",
         "test_image_dataset_root": f"{project_root_dir}/dataset/images/test",
 
         "graph_dataset_folder": f"{graph_filename}/{connectivity}",
@@ -167,12 +173,46 @@ def set_seed():
     torch.backends.cudnn.benchmark = False
 
 
-def load_data(dataset_dir,batch_size=16,num_samples_per_class=0,type_data="train"):
+
+class BalancedSampler(SubsetRandomSampler):
+    def __init__(self, indices, num_samples_per_class, class_to_idx, targets):
+        self.indices = indices
+        self.num_samples_per_class = num_samples_per_class
+        self.class_to_idx = class_to_idx
+        self.targets = targets
+        self.balanced_indices = self.get_balanced_indices()
+        super().__init__(self.balanced_indices)
+
+    def get_balanced_indices(self):
+        # Group indices by class
+        class_indices = defaultdict(list)
+        for idx in self.indices:
+            class_label = self.targets[idx]
+            class_indices[class_label].append(idx)
+
+        # Sample equal number of images per class
+        balanced_indices = []
+        for class_label, indices in class_indices.items():
+            balanced_indices.extend(
+                random.sample(indices, min(self.num_samples_per_class, len(indices)))
+            )
+
+        return balanced_indices
+
+def load_data(dataset_dir,batch_size=16,num_samples_per_class=0,use_class_weights=False):
+        set_seed()
+        train_folder,val_folder,test_folder = dataset_dir[0],dataset_dir[1],dataset_dir[2]
+        
         # Create datasets
-        dataset = datasets.ImageFolder(dataset_dir, transform=transform(type_data=type_data))
-        num_classes = len(dataset.classes)
-        targets = [dataset.targets[i] for i in range(len(dataset))]
-        indices = list(range(len(dataset)))
+        train_dataset = datasets.ImageFolder(train_folder, transform=transform(type_data="train"))
+        test_dataset = datasets.ImageFolder(val_folder, transform=transform(type_data="test"))
+        val_dataset = datasets.ImageFolder(test_folder, transform=transform(type_data="test"))    
+        print(f"Train dataset: {len(train_dataset)} images")
+        print(f"Validation dataset: {len(val_dataset)} images") 
+        print(f"Test dataset: {len(test_dataset)} images")
+        num_classes = len( train_dataset.classes)
+        targets = [train_dataset.targets[i] for i in range(len(train_dataset))]
+        indices = list(range(len(train_dataset)))
 
 
         # Create data loaders
@@ -180,24 +220,81 @@ def load_data(dataset_dir,batch_size=16,num_samples_per_class=0,type_data="train
         sampler = BalancedSampler(
             indices=indices,
             num_samples_per_class=num_samples_per_class,
-            class_to_idx=dataset.class_to_idx,
+            class_to_idx=train_dataset.class_to_idx,
             targets=targets
         )
 
-        if type_data=="train":
-            if num_samples_per_class==0:
-                data_loader = DataLoader(dataset,  batch_size=batch_size,shuffle=True)
+        if num_samples_per_class==0:
+                
+            if use_class_weights==True:
+               # Calculate class frequencies in the training dataset
+                class_counts = [len(np.where(np.array(train_dataset.targets) == i)[0]) for i in range(len(train_dataset.classes))]
+
+                # Calculate weights for each class based on inverse frequency
+                weights = 1. / np.array(class_counts)
+
+                # Create a weight array for each sample in the dataset based on its class label
+                sample_weights = np.array([weights[label] for label in train_dataset.targets])
+
+                # Create the WeightedRandomSampler
+                train_sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(train_dataset), replacement=True)
+
+                # Create DataLoader for training and testing
+                train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler)
             else:
-                data_loader = DataLoader(dataset,  batch_size=batch_size,  sampler=sampler)
-
-        elif type_data=="test":
-            data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-
+                train_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
         else:
-            raise ValueError(f"Unsupported type_data: {type_data}. Use 'train' or 'test'.")
+            train_loader = image_DataLoader(train_dataset,  batch_size=batch_size,sampler= sampler)
+       
+        val_loader = image_DataLoader(val_dataset,  batch_size=batch_size,shuffle=False) 
+        test_loader = image_DataLoader(test_dataset,  batch_size=batch_size,shuffle=False)
+        
+        return num_classes, train_loader, val_loader, test_loader, train_dataset.classes
+        
 
-        print(f"Dataset details: {count_classes(data_loader)}")
-        return num_classes, data_loader, dataset.classes
+
+def split_image_dataset(data_path):
+   
+        # path to destination folders
+    train_folder = os.path.join(data_path, 'train')
+    val_folder = os.path.join(data_path, 'eval')
+    test_folder = os.path.join(data_path, 'test')
+
+    # Define a list of image extensions
+    image_extensions = ['.jpg', '.jpeg', '.png']
+
+    # Create a list of image filenames in 'data_path'
+    imgs_list = [filename for filename in os.listdir(data_path) if os.path.splitext(filename)[-1] in image_extensions]
+
+    # Sets the random seed 
+    set_seed()   
+    # Shuffle the list of image filenames
+    random.shuffle(imgs_list)
+
+    # determine the number of images for each set
+    train_size = int(len(imgs_list) * 0.7)
+    val_size = int(len(imgs_list) * 0.15)
+    test_size = int(len(imgs_list) * 0.15)
+
+    # Create destination folders if they don't exist
+    for folder_path in [train_folder, val_folder, test_folder]:
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+    # Copy image files to destination folders
+    for i, f in enumerate(imgs_list):
+        if i < train_size:
+            dest_folder = train_folder
+        elif i < train_size + val_size:
+            dest_folder = val_folder
+        else:
+            dest_folder = test_folder
+        shutil.copy(os.path.join(data_path, f), os.path.join(dest_folder, f))
+        print(f"Copying {f} to {dest_folder}")
+
+
+    return train_folder,val_folder,test_folder 
+
 
 
 def transform(type_data="train"):
