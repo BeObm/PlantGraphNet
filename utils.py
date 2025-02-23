@@ -26,7 +26,7 @@ config = ConfigParser()
 RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
 project_root_dir = os.path.abspath(os.getcwd())
 
-def create_config_file(dataset_name,type_graph,connectivity):
+def create_config_file(type_graph,connectivity):
     configs_folder = osp.join(project_root_dir, f'results/GNN_Models/{type_graph}/{RunCode}')
     os.makedirs(configs_folder, exist_ok=True)
     config_filename = f"{configs_folder}/ConfigFile_{RunCode}.ini"
@@ -37,7 +37,8 @@ def create_config_file(dataset_name,type_graph,connectivity):
         'config_filename': config_filename,
         'type_graph': type_graph,
         "graph_filename":graph_filename,
-        "train_image_dataset_root": f"{project_root_dir}/dataset/images/{dataset_name}",
+        "train_image_dataset_root": f"{project_root_dir}/dataset/images/train",
+        "val_image_dataset_root": f"{project_root_dir}/dataset/images/val",
         "test_image_dataset_root": f"{project_root_dir}/dataset/images/test",
 
         "graph_dataset_folder": f"{graph_filename}/{connectivity}",
@@ -205,8 +206,8 @@ def load_data(dataset_dir,batch_size=16,num_samples_per_class=0,use_class_weight
         
         # Create datasets
         train_dataset = datasets.ImageFolder(train_folder, transform=transform(type_data="train"))
-        test_dataset = datasets.ImageFolder(val_folder, transform=transform(type_data="test"))
-        val_dataset = datasets.ImageFolder(test_folder, transform=transform(type_data="test"))    
+        test_dataset = datasets.ImageFolder(test_folder, transform=transform(type_data="test"))
+        val_dataset = datasets.ImageFolder(val_folder, transform=transform(type_data="test"))    
         print(f"Train dataset: {len(train_dataset)} images")
         print(f"Validation dataset: {len(val_dataset)} images") 
         print(f"Test dataset: {len(test_dataset)} images")
@@ -225,31 +226,31 @@ def load_data(dataset_dir,batch_size=16,num_samples_per_class=0,use_class_weight
         )
 
         if num_samples_per_class==0:
-                
-            if use_class_weights==True:
-               # Calculate class frequencies in the training dataset
-                class_counts = [len(np.where(np.array(train_dataset.targets) == i)[0]) for i in range(len(train_dataset.classes))]
+             # Calculate class frequencies in the training dataset
+            class_counts = [len(np.where(np.array(train_dataset.targets) == i)[0]) for i in range(len(train_dataset.classes))]
 
                 # Calculate weights for each class based on inverse frequency
-                weights = 1. / np.array(class_counts)
+            weights = 1. / np.array(class_counts)
 
                 # Create a weight array for each sample in the dataset based on its class label
-                sample_weights = np.array([weights[label] for label in train_dataset.targets])
-
+            sample_weights = np.array([weights[label] for label in train_dataset.targets])
+                
+            if use_class_weights==True:
+               
                 # Create the WeightedRandomSampler
                 train_sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(train_dataset), replacement=True)
 
                 # Create DataLoader for training and testing
                 train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler)
             else:
-                train_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
+                train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         else:
-            train_loader = image_DataLoader(train_dataset,  batch_size=batch_size,sampler= sampler)
+            train_loader = image_DataLoader(train_dataset,  batch_size=batch_size,sampler=sampler)
        
         val_loader = image_DataLoader(val_dataset,  batch_size=batch_size,shuffle=False) 
         test_loader = image_DataLoader(test_dataset,  batch_size=batch_size,shuffle=False)
         
-        return num_classes, train_loader, val_loader, test_loader, train_dataset.classes
+        return num_classes, train_loader, val_loader, test_loader, train_dataset.classes,sample_weights
         
 
 

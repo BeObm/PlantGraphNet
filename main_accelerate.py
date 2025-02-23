@@ -17,8 +17,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
-    parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
+    parser.add_argument("--type_graph", default="harris", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
+    parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=32, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=4, help="batch_size")
@@ -36,9 +36,10 @@ if __name__ == "__main__":
     create_config_file(args.type_graph, args.connectivity)
    
     
-    train_graph_list,feat_size,class_names = Load_graphdata(f"{config['param']['graph_dataset_folder']}/train")
-    test_graph_list,_,_ = Load_graphdata(f"{config['param']['graph_dataset_folder']}/test")
-
+    train_graph_list,feat_size,class_names = Load_graphdata(f"dataset/graphs/{args.type_graph}/{args.connectivity}/train")
+    test_graph_list,_,_ = Load_graphdata(f"dataset/graphs/{args.type_graph}/{args.connectivity}/test")
+    val_graph_list,_,_ = Load_graphdata(f"dataset/graphs/{args.type_graph}/{args.connectivity}/test")
+    
     train_loader= graphdata_loader(train_graph_list,args=args,type_data="train")
     test_loader=graphdata_loader(test_graph_list,args=args,type_data="test")
 

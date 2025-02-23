@@ -38,7 +38,7 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
         a = 1
         
         with multiprocessing.Pool() as pool:
-            pool.starmap(image_to_graph, [(os.path.join(class_path, img_file), label, class_folder, connectivity, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt",use_image_feats) for idx,img_file in enumerate(image_files)])
+            pool.starmap(image_to_graph, [(os.path.join(class_path, img_file), label, class_folder, connectivity, apply_transform, f"{graph_dataset_dir}/{type_dataset}_{label}_{idx}.pt",use_image_feats) for idx,img_file in enumerate(image_files)])
        
         # for idx,img_file in enumerate(image_files):
         #     img_path = os.path.join(class_path, img_file)
