@@ -36,7 +36,7 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
         a = 1
         with multiprocessing.Pool() as pool:
             pool.starmap(image_to_graph, [(os.path.join(class_path, img_file), label, class_folder, connectivity, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt",use_image_feats) for idx,img_file in enumerate(image_files)])
-            
+        
         # for idx,img_file in enumerate(image_files):
         #     img_path = os.path.join(class_path, img_file)
         #     image_to_graph(img_path=img_path,
@@ -67,7 +67,7 @@ def image_to_graph(img_path, label,label_name,connectivity,apply_transforms=True
          data=Data(x=x, edge_index=edge_index, y=y, image_features=img.unsqueeze(dim=0),label_name=label_name)
     else:
         data=Data(x=x, edge_index=edge_index, y=y,label_name=label_name)
-    print(data)
+    
     torch.save(data, output_path)
 
 def get_node_features_and_edge_list(image,connectivity):
@@ -80,7 +80,6 @@ def get_node_features_and_edge_list(image,connectivity):
         edges (list of tuple): List of edges, where each edge is a tuple (node1, node2).
         node_features (torch.Tensor): Node features of the graph of size (num_pixels, channels).
     """
-    print("The shape of an image at this step is: ",image.shape)
     image = validate_image(image)
     channels, height, width = image.shape
 

@@ -1,6 +1,6 @@
 import argparse
 from datetime import datetime
-from torch_geometric.nn import GENConv, GATConv
+from torch_geometric.nn import GENConv, GATConv,TransformerConv
 from tqdm import tqdm
 import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
@@ -17,14 +17,15 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_graph", default="harris", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
-    parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
-    parser.add_argument("--hidden_dim", default=32, type=int, help="hidden_dim")
-    parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
+    parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["grid", "single" "multi"])
+    parser.add_argument("--type_node_detector", default="sift", help="define how to detect nodes", choices=["sift", "orb", "fast", "akaze", "harris"]) 
+    parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
+    parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
+    parser.add_argument("--num_epochs", type=int, default=150, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=4, help="batch_size")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
-    parser.add_argument("--Conv1", default=GENConv, help="Conv1")
+    parser.add_argument("--Conv1", default=TransformerConv, help="Conv1")
     parser.add_argument("--Conv2", default=GATConv, help="Conv2")
     parser.add_argument("--gpu_idx", default=0, help="GPU  num")
     parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
@@ -38,7 +39,11 @@ if __name__ == "__main__":
     
     train_graph_list,feat_size,class_names = Load_graphdata(f"dataset/graphs/{args.type_graph}/{args.connectivity}/train")
     test_graph_list,_,_ = Load_graphdata(f"dataset/graphs/{args.type_graph}/{args.connectivity}/test")
-    val_graph_list,_,_ = Load_graphdata(f"dataset/graphs/{args.type_graph}/{args.connectivity}/test")
+    val_graph_list,_,_ = Load_graphdata(f"dataset/graphs/{args.type_graph}/{args.connectivity}/val")
+    
+    print(f"Number of training graphs: {len(train_graph_list)}")
+    print(f"Number of testing graphs: {len(test_graph_list)}")
+    print(f"Number of validation graphs: {len(val_graph_list)}")
     
     train_loader= graphdata_loader(train_graph_list,args=args,type_data="train")
     test_loader=graphdata_loader(test_graph_list,args=args,type_data="test")
@@ -101,5 +106,3 @@ if __name__ == "__main__":
     
     print(f"Model Classification report for GNN model \n ")
     print(cr)
-    
-

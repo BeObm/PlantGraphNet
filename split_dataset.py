@@ -71,7 +71,7 @@ def split_image_dataset(data_path, train_ratio=0.8, val_ratio=0, test_ratio=0.2)
 
 
 if __name__ == "__main__":
-    # data_path1 = "dataset/images/lidl"
-    data_path = "dataset\images\lild_dl_test"
+    data_path = "dataset/images/lidl"
+    # # data_path = "dataset\images\lild_dl_test"
     train_folder,val_folder,test_folder = split_image_dataset(data_path,train_ratio=0.6, val_ratio=0.2, test_ratio=0.2)
     print(f"Data split successfully into train, validation, and test folders: {train_folder}, {val_folder}, {test_folder}")
