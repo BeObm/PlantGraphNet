@@ -7,7 +7,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--type_graph", default="single", help="define how to construct nodes and egdes", choices=["single", "grid", "multi"])
-    parser.add_argument("--type_node_detector", default="sift", type=str, help="define how to detect nodes", choices=["sift", "orb", "fast", "akaze", "harris"]) 
+    parser.add_argument("--type_node_detector", default="akaze", type=str, help="define how to detect nodes", choices=["sift", "orb", "fast", "akaze", "harris"]) 
     parser.add_argument("--apply_transform", default=True, type=bool, help="apply transform", choices=[True, False])
     parser.add_argument("--images_per_class", type=int, default=0, help="number of images to use for training/test per class; 0 means all")
     parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
@@ -22,17 +22,17 @@ if __name__ == "__main__":
     graph_constructor = getattr(graph_constructor_obj, "build_dataset")
     start_time = datetime.now()
     
-    print("Creating training graph datasets...")
+    print(f" {'#'*10}  Creating training graph datasets...")
     graph_constructor(dataset_path="dataset/images/train",
                                      args=args,
                                      type_dataset="train",
                                      apply_transform=True)
-    print("Creating validation graph datasets...")
+    print(f" {'#'*10}  Creating validation graph datasets...")
     graph_constructor(dataset_path="dataset/images/val",
                                      args=args,
                                      type_dataset="val",
                                      apply_transform=False)
-    print("Creating testing graph datasets...")
+    print(f" {'#'*10}   Creating testing graph datasets...")
     graph_constructor(dataset_path="dataset/images/test",
                                      args=args,
                                      type_dataset="test",

@@ -53,7 +53,7 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
 
 def image_to_graph(img_path, label,label_name,node_detector,apply_transforms=True, output_path="data/graph_data.pt", use_image_feats=False):
     print(f"Processing image: {img_path}")
-    img = cv2.imread(img_path)
+    img = cv2.imread(img_path,cv2.IMREAD_GRAYSCALE)
     # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img2=Image.open(img_path).convert('RGB')
 
@@ -65,28 +65,31 @@ def image_to_graph(img_path, label,label_name,node_detector,apply_transforms=Tru
     #     img = transform_pipeline(img)
         
     if node_detector=="harris":   
-          keypoints, descriptors0 = extract_harris(img)
+          keypoints, descriptors = extract_harris(img)
     elif node_detector=="sift":
-        keypoints, descriptors0 = extract_sift(img)
+        keypoints, descriptors= extract_sift(img)
     elif node_detector=="orb":
-        keypoints, descriptors0 = extract_orb(img)
+        keypoints, descriptors = extract_orb(img)
     elif node_detector=="fast":
-        keypoints, descriptors0 = extract_fast(img)
+        keypoints, descriptors = extract_fast(img)
     elif node_detector=="akaze":
-        keypoints, descriptors0 = extract_akaze(img)
+        keypoints, descriptors = extract_akaze(img)
     else:
         raise ValueError(f"Unknown node detector: {node_detector}")
     
-    try:
+    print(f"Keypoints: {len(keypoints)}")
+    print(f"Descriptors: {descriptors.shape}")  
     
-        descriptors = (descriptors0 - descriptors0.min()) / (descriptors0.max() - descriptors0.min())
-    except:
-        print(f"Error in processing image: {img_path}")
-        print(f"Descriptors: {descriptors0}")
-        print(f" Descriptor type: {type(descriptors0)}")
-        raise ValueError(f"Error in processing image: {img_path}")
+    # try:
+    
+    #     descriptors = (descriptors0 - descriptors0.min()) / (descriptors0.max() - descriptors0.min())
+    # except:
+    #     print(f"Error in processing image: {img_path}")
+    #     print(f"Descriptors: {descriptors0}")
+    #     print(f" Descriptor type: {type(descriptors0)}")
+    #     raise ValueError(f"Error in processing image: {img_path}")
 
-    x, edge_index, edge_attr= construct_graph_with_pixel_features(keypoints, descriptors, img,distance_threshold=50,similarity_treshold=100, patch_size=32, type=node_detector)
+    x, edge_index, edge_attr= construct_graph_with_pixel_features(keypoints, descriptors, img,distance_threshold=50,similarity_treshold=100, patch_size=8, type=node_detector)
     y = torch.tensor([label], dtype=torch.long)
     if use_image_feats==True:
          data=Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y, image_features=img2.unsqueeze(dim=0),label_name=label_name)
@@ -98,7 +101,7 @@ def image_to_graph(img_path, label,label_name,node_detector,apply_transforms=Tru
 
 
 
-def construct_graph_with_pixel_features(keypoints, descriptors, img, distance_threshold=50,similarity_treshold=100, patch_size=32, type="sift"):
+def construct_graph_with_pixel_features(keypoints, descriptors, img, distance_threshold=50,similarity_treshold=100, patch_size=8, type="sift"):
     """
     Constructs a graph with keypoints as nodes, incorporating pixel features from patches around the keypoints.
     
@@ -167,7 +170,11 @@ def extract_sift(img):
 
 def extract_orb(img):
     orb = cv2.ORB_create()
-    keypoints, descriptors = orb.detectAndCompute(img, None)
+    # find the keypoints with ORB
+    keypoints = orb.detect(img,None)
+    
+    # compute the descriptors with ORB
+    keypoints, descriptors = orb.compute(img, keypoints)
     return keypoints, descriptors
 
 def extract_fast(img):
