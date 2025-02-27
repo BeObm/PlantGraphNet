@@ -19,12 +19,11 @@ import cv2
 def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
     
     nb_per_class=args.images_per_class
-    connectivity = args.connectivity
-    node_detector = args.node_detector
+    node_detector = args.type_node_detector
     use_image_feats = args.use_image_feats
     dataset = []
     class_folders = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
-    graph_dataset_dir = f"{config['param']['graph_dataset_folder']}/{type_dataset}"
+    graph_dataset_dir = f"{config['param']['graph_dataset_folder']}/{args.type_node_detector}/{type_dataset}"
     os.makedirs(graph_dataset_dir, exist_ok=True)
 
     for label, class_folder in tqdm(enumerate(class_folders)):
@@ -53,19 +52,21 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
 
 
 def image_to_graph(img_path, label,label_name,node_detector,apply_transforms=True, output_path="data/graph_data.pt", use_image_feats=False):
+    print(f"Processing image: {img_path}")
     img = cv2.imread(img_path)
     # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img2=Image.open(img_path).convert('RGB')
 
-    if apply_transforms:
-        transform_pipeline= transform(type_data="train")
-        img = transform_pipeline(img)
-    else:
-        transform_pipeline = transform(type_data="test")
-        img = transform_pipeline(img)
+    # if apply_transforms:
+    #     transform_pipeline= transform(type_data="train")
+    #     img = transform_pipeline(img)
+    # else:
+    #     transform_pipeline = transform(type_data="test")
+    #     img = transform_pipeline(img)
         
-    if node_detector=="harris":    
-        
-    if node_detector=="sift":
+    if node_detector=="harris":   
+          keypoints, descriptors0 = extract_harris(img)
+    elif node_detector=="sift":
         keypoints, descriptors0 = extract_sift(img)
     elif node_detector=="orb":
         keypoints, descriptors0 = extract_orb(img)
@@ -73,18 +74,26 @@ def image_to_graph(img_path, label,label_name,node_detector,apply_transforms=Tru
         keypoints, descriptors0 = extract_fast(img)
     elif node_detector=="akaze":
         keypoints, descriptors0 = extract_akaze(img)
-        
-    descriptors = (descriptors0 - descriptors0.min()) / (descriptors0.max() - descriptors0.min())
+    else:
+        raise ValueError(f"Unknown node detector: {node_detector}")
+    
+    try:
+    
+        descriptors = (descriptors0 - descriptors0.min()) / (descriptors0.max() - descriptors0.min())
+    except:
+        print(f"Error in processing image: {img_path}")
+        print(f"Descriptors: {descriptors0}")
+        print(f" Descriptor type: {type(descriptors0)}")
+        raise ValueError(f"Error in processing image: {img_path}")
 
-    x, edge_index, edge_attr= construct_graph_with_pixel_features(keypoints, descriptors, img)
+    x, edge_index, edge_attr= construct_graph_with_pixel_features(keypoints, descriptors, img,distance_threshold=50,similarity_treshold=100, patch_size=32, type=node_detector)
     y = torch.tensor([label], dtype=torch.long)
     if use_image_feats==True:
-         data=Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y, image_features=img.unsqueeze(dim=0),label_name=label_name)
+         data=Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y, image_features=img2.unsqueeze(dim=0),label_name=label_name)
     else:
         data=Data(x=x, edge_index=edge_index, y=y,label_name=label_name)
         
     torch.save(data, output_path)
-    print(f"Data: {output_path}: {data}")
 
 
 
@@ -122,7 +131,7 @@ def construct_graph_with_pixel_features(keypoints, descriptors, img, distance_th
                 if dist < distance_threshold:
                     # Calculate descriptor distance (Euclidean distance between descriptors)
                     if type=="orb":
-                        descriptor_distance = cv2.norm(descriptors[i], descriptors[j], cv2.NORM_HAMMING)    
+                        descriptor_distance = cv2.norm(descriptors[i], descriptors[j], normType=cv2.NORM_L2)    
                     else:
                         #  descriptor_distance = np.linalg.norm(descriptors[i] - descriptors[j])
                         descriptor_distance = cv2.norm(descriptors[i], descriptors[j], cv2.NORM_L2) 
@@ -231,7 +240,8 @@ def extract_patch_features(img, keypoint, patch_size=32):
 
     # Normalize the patch (optional: normalization helps neural networks)
     patch = patch.astype(np.float32) / 255.0  # Normalize to [0, 1] range
-    return torch.tensor(patch).view(1, patch_size, patch_size)  # Reshape for PyTorch (1, patch_size, patch_size)
+    # return torch.tensor(patch).view(1, patch_size, patch_size)  # Reshape for PyTorch (1, patch_size, patch_size)
+    return torch.tensor(patch)  
 
 
 

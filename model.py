@@ -238,18 +238,19 @@ class GNNModel(torch.nn.Module):
         # Graph feature processing
         node_features = data.x
         edge_index = data.edge_index.view(2, -1)
+        edge_attr = data.edge_attr
         batch = data.batch
             
         # print(f"node_features: {node_features.shape} edge_index: {edge_index.shape} batch: {batch.shape} image_features: {image_features.shape}")
-        node_features = self.graph_conv1(node_features, edge_index)
+        node_features = self.graph_conv1(node_features, edge_index,edge_attr)
         node_features = self.batch_norm1(node_features)
         node_features = self.act(node_features)
 
-        node_features = self.graph_conv2(node_features, edge_index)
+        node_features = self.graph_conv2(node_features, edge_index,edge_attr)
         node_features = self.batch_norm2(node_features)
         node_features = self.act(node_features)
 
-        node_features = self.graph_conv3(node_features, edge_index)
+        node_features = self.graph_conv3(node_features, edge_index,edge_attr)
         node_features = self.batch_norm2(node_features)
         node_features = self.act(node_features)
         

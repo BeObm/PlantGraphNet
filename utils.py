@@ -26,13 +26,12 @@ config = ConfigParser()
 RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
 project_root_dir = os.path.abspath(os.getcwd())
 
-def create_config_file(type_graph,connectivity):
+def create_config_file(type_graph):
     configs_folder = osp.join(project_root_dir, f'results/GNN_Models/{type_graph}/{RunCode}')
     os.makedirs(configs_folder, exist_ok=True)
     config_filename = f"{configs_folder}/ConfigFile_{RunCode}.ini"
-    graph_filename = f"{project_root_dir}/dataset/graphs/{type_graph}"
+    graph_filename = f"{project_root_dir}/dataset/graphs"
     os.makedirs(graph_filename, exist_ok=True)
-    os.makedirs(f"{graph_filename}/{connectivity}", exist_ok=True)
     config["param"] = {
         'config_filename': config_filename,
         'type_graph': type_graph,
@@ -41,7 +40,7 @@ def create_config_file(type_graph,connectivity):
         "val_image_dataset_root": f"{project_root_dir}/dataset/images/val",
         "test_image_dataset_root": f"{project_root_dir}/dataset/images/test",
 
-        "graph_dataset_folder": f"{graph_filename}/{connectivity}",
+        "graph_dataset_folder": f"{graph_filename}",
         "result_folder": f"{configs_folder}",
         "sigma":1.0,
         "threshold":0.01,
@@ -413,22 +412,14 @@ def save_multiple_time_to_excel_with_date(cr, args):
     else:
         cr.to_excel(output_file_path)
 
-def graphdata_loader(graph_list,args,type_data="train",ddp=True):
+def graphdata_loader(graph_list,batch_size,type_data="train",ddp=True):
     set_seed()
-    
-    if ddp==True:  
-        sampler=DistributedSampler(graph_list)
-        if type_data == "train":
-            dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler)
-        else:
-            dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler)
-
+  
+    sampler=ImbalancedSampler(graph_list)
+    if type_data == "train":
+        dataset_loader = DataLoader(graph_list, batch_size=batch_size, sampler=sampler)
     else:
-        sampler=ImbalancedSampler(graph_list)
-        if type_data == "train":
-            dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, sampler=sampler)
-        else:
-            dataset_loader = DataLoader(graph_list, batch_size=args.batch_size, shuffle=False, num_workers=os.cpu_count())
+        dataset_loader = DataLoader(graph_list, batch_size=batch_size, shuffle=False, num_workers=os.cpu_count())
 
 
     return dataset_loader
@@ -448,18 +439,15 @@ def Load_graphdata(dataset_source_path):
         # Load all graphs concurrently
         results = executor.map(load_single_graph, file_paths)
 
-        for data in results:
-            if int(data.y.item()) not in label_dict.keys():
-                label_dict[int(data.y.item())] = data.label_name
-            graph_list.append(data)
+    for data in results:
+        if int(data.y.item()) not in label_dict.keys():
+            label_dict[int(data.y.item())] = data.label_name
+        graph_list.append(data)
 
     # Sorting labels and printing dataset details
-    labels = list(dict(sorted(label_dict.items())).values())
-    print("The dataset has been loaded. It contains:", len(graph_list), "graphs.")
-    print("Graph 1:", graph_list[0])  # Adjusted for proper indexing
+    labels = list(dict(sorted(label_dict.items())).values())    
     feat_size = data.x.shape[1]
 
-    print("The dataset has been loaded. It contains:", len(labels), "classes:", list(labels))   
     return graph_list, feat_size, labels
 
 
