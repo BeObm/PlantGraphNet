@@ -199,7 +199,7 @@ class BalancedSampler(SubsetRandomSampler):
 
         return balanced_indices
 
-def load_data(dataset_dir,batch_size=16,num_samples_per_class=0,use_class_weights=False):
+def load_data(dataset_dir,batch_size=16,num_samples_per_class=0,use_class_weights=True):
         set_seed()
         train_folder,val_folder,test_folder = dataset_dir[0],dataset_dir[1],dataset_dir[2]
         
@@ -428,6 +428,7 @@ def Load_graphdata(dataset_source_path):
     set_seed()
     graph_list = []
     label_dict = {}
+    x_size=[]
     
     assert os.path.isdir(dataset_source_path), "The provided dataset_source_path is not a valid directory."
 
@@ -440,10 +441,15 @@ def Load_graphdata(dataset_source_path):
         results = executor.map(load_single_graph, file_paths)
 
     for data in results:
+        print("This the graph data.x size ",data.x.shape[1])
+    
         if int(data.y.item()) not in label_dict.keys():
             label_dict[int(data.y.item())] = data.label_name
+        if int(data.x.shape[1]) not in x_size:
+            x_size.append(data.x)
+        
         graph_list.append(data)
-
+    print(f"Distinct x size: {len(x_size)}")
     # Sorting labels and printing dataset details
     labels = list(dict(sorted(label_dict.items())).values())    
     feat_size = data.x.shape[1]

@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--dataset_name", help="dataset name", default="lidl", choices=["lidl", "other"])
     parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="baseline", choices=["baseline", "Our_CNN_Model"])
-    parser.add_argument("--model_name", help="Model name", default="ResNet101", choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet"])
+    parser.add_argument("--model_name", help="Model name", default="GoogleNet", choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet"])
     parser.add_argument("--dataset_size", type=int, default=0, help="number  of images to use for training per class, 0 means all")
     parser.add_argument("--use_class_weights", default=True, type=bool, help="use class weights", choices=[True, False])
     parser.add_argument("--hidden_dim", default=512, type=int, help="hidden_dim")
@@ -59,7 +59,9 @@ if __name__ == "__main__":
         except:
             pass
     print(f" Sample weights: {len(sample_weights)}: {sample_weights}")
-    criterion = nn.CrossEntropyLoss(weight=torch.tensor(sample_weights),reduction='mean')
+    criterion = nn.CrossEntropyLoss(reduction='mean')
+        # criterion = nn.CrossEntropyLoss(weight=torch.tensor(sample_weights).to(accelerator.device),reduction='mean')
+
     optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=0.0001)
     
     
