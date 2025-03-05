@@ -20,6 +20,8 @@ from torch.utils.data import  SubsetRandomSampler,WeightedRandomSampler
 from torch.utils.data import DataLoader as image_DataLoader
 import random
 import os
+from datetime import datetime
+
 import shutil
 
 config = ConfigParser()
@@ -462,3 +464,19 @@ def load_single_graph(file_path):
     """ Helper function to load a single graph from a file. """
     data = torch.load(file_path)
     return data
+
+
+
+def calculate_running_time(start_time, end_time):
+    # Convert string inputs to datetime objects
+    fmt = "%H:%M"  # Format: HH:MM (24-hour format)
+    start = datetime.strptime(start_time, fmt)
+    end = datetime.strptime(end_time, fmt)
+    
+    # Calculate the time difference
+    duration = end - start
+    
+    # Convert to hours
+    hours = duration.total_seconds() / 3600  # Convert seconds to hours
+    
+    return hours

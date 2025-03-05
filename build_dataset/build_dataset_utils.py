@@ -25,7 +25,6 @@ from math import atan2, sqrt
 
 
 
-
 def load_image(image_path):
     """ Load image as BGR and grayscale """
     img = cv2.imread(image_path)
@@ -36,8 +35,6 @@ def save_graph(graph, output_path, label):
     """ Save PyTorch Geometric Data object with label """
     graph.y = torch.tensor([label], dtype=torch.long)  # Add label
     torch.save(graph, output_path)
-
-
 
 
 
@@ -83,10 +80,10 @@ def keypoint_graph(image_path,label):
     # Convert keypoints to a PyTorch tensor
     points = np.array([k.pt for k in kp])
     x = torch.tensor(des, dtype=torch.float)
-
+    k=5 if len(points)>5 else len(points)
     # Nearest neighbors (k=5)
-    nbrs = NearestNeighbors(n_neighbors=5).fit(points)
-    adjacency_matrix = nbrs.kneighbors_graph(points, 5, mode='connectivity').tocoo()
+    nbrs = NearestNeighbors(n_neighbors=k).fit(points)
+    adjacency_matrix = nbrs.kneighbors_graph(points, k, mode='connectivity').tocoo()
     edge_index = torch.tensor(np.vstack([adjacency_matrix.row, adjacency_matrix.col]), dtype=torch.long)
 
     return Data(x=x, edge_index=edge_index, edge_attr=torch.tensor([1]*edge_index.shape[1],dtype=torch.float), y=torch.tensor([label]))

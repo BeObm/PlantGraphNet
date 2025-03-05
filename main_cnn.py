@@ -51,7 +51,7 @@ if __name__ == "__main__":
         args.result_dir = f"results/CNN Models/{args.dataset_size}images_per_class/{args.model_name}"
     os.makedirs(args.result_dir, exist_ok=True)
     saved_model_path = f'{args.result_dir}/{args.model_name}_weight.pth'
-
+    
     if os.path.isfile(saved_model_path):
         try:
             model.load_state_dict(torch.load(saved_model_path))
@@ -77,4 +77,5 @@ if __name__ == "__main__":
 
     print(f"Model Classification report for {args.model_name} \n ")
     print(cr)
-    print(f"Time taken to train the model: {end_time - start_time}")
+    times=calculate_running_time(end_time - start_time)
+    print(f"Time taken to train the model: {times} {'hours' if times>1 else 'hour'}")
