@@ -430,7 +430,7 @@ def Load_graphdata(dataset_source_path):
     set_seed()
     graph_list = []
     label_dict = {}
-    x_size=[]
+    x_size=defaultdict(list)
     
     assert os.path.isdir(dataset_source_path), "The provided dataset_source_path is not a valid directory."
 
@@ -447,8 +447,8 @@ def Load_graphdata(dataset_source_path):
     
         if int(data.y.item()) not in label_dict.keys():
             label_dict[int(data.y.item())] = data.label_name
-        if int(data.x.shape[1]) not in x_size:
-            x_size.append(data.x)
+        if data.x.shape[1] in x_size.keys():
+            x_size[data.x.shape[1]].append(1)
         
         graph_list.append(data)
     print(f"Distinct x size: {len(x_size)}")

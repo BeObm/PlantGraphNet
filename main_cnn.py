@@ -77,5 +77,5 @@ if __name__ == "__main__":
 
     print(f"Model Classification report for {args.model_name} \n ")
     print(cr)
-    times=calculate_running_time(end_time - start_time)
+    times=calculate_running_time(start_time,end_time)
     print(f"Time taken to train the model: {times} {'hours' if times>1 else 'hour'}")
