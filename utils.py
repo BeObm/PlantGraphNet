@@ -20,6 +20,7 @@ from torch.utils.data import  SubsetRandomSampler,WeightedRandomSampler
 from torch.utils.data import DataLoader as image_DataLoader
 import random
 import os
+from tqdm import tqdm
 from datetime import datetime
 
 import shutil
@@ -430,7 +431,7 @@ def Load_graphdata(dataset_source_path):
     set_seed()
     graph_list = []
     label_dict = {}
-    x_size=defaultdict(list)
+    # x_size=defaultdict(list)
     
     assert os.path.isdir(dataset_source_path), "The provided dataset_source_path is not a valid directory."
 
@@ -442,16 +443,14 @@ def Load_graphdata(dataset_source_path):
         # Load all graphs concurrently
         results = executor.map(load_single_graph, file_paths)
 
-    for data in results:
-        print("This the graph data.x size ",data.x.shape[1])
+    for idx,data in tqdm(enumerate(results)):
     
         if int(data.y.item()) not in label_dict.keys():
             label_dict[int(data.y.item())] = data.label_name
-        if data.x.shape[1] in x_size.keys():
-            x_size[data.x.shape[1]].append(1)
+        # if data.x.shape[1] in x_size.keys():
+        #     x_size[data.x.shape[1]].append(1)
         
         graph_list.append(data)
-    print(f"Distinct x size: {len(x_size)}")
     # Sorting labels and printing dataset details
     labels = list(dict(sorted(label_dict.items())).values())    
     feat_size = data.x.shape[1]

@@ -348,7 +348,7 @@ def test_function(accelerator, model, test_loader, class_names):
     
 
 
-
+@torch.no_grad()
 def test(model, loader,device,class_names):
     filename = f"{config['param']['result_folder']}/confusion_matrix.pdf"
     print(f"class name size is {len(class_names)}")
@@ -375,6 +375,7 @@ def test(model, loader,device,class_names):
 
     return cls_report
 
+@torch.no_grad()
 def test_ddp(model, loader,class_names):
     filename = f"{config['param']['result_folder']}/confusion_matrix.pdf"
     print(f"class name size is {len(class_names)}")

@@ -15,13 +15,16 @@ import matplotlib.pyplot as plt
 import cv2
 import networkx as nx
 from skimage.segmentation import slic
-# from skimage.future.graph import rag_mean_color
+from skimage.future.graph import rag_mean_color
 from scipy.spatial import Delaunay, Voronoi
 from sklearn.neighbors import NearestNeighbors
 from torch_geometric.data import Data
 from torch_geometric.utils import grid
 from math import atan2, sqrt
 
+from skimage.segmentation import slic, find_boundaries
+from skimage.future import graph
+from skimage.io import imread
 
 
 
@@ -39,30 +42,51 @@ def save_graph(graph, output_path, label):
 
 
 
-def superpixel_graph(image_path,label):
+
+def load_image_s(image_path):
+    img = imread(image_path)
+    if img.dtype == np.uint8:
+        img = img.astype(np.float32) / 255.0
+    return img
+
+
+def superpixel_graph(image_path, label, n_segments=50, compactness=10):
     """
-    Constructs a superpixel-based graph using SLIC segmentation and RAG.
+    Constructs a superpixel-based graph using SLIC segmentation without rag_mean_color.
     """
-    img, _ = load_image(image_path)
-    labels = slic(img, n_segments=50, compactness=10, start_label=0)
+    img = load_image_s(image_path)
+    labels = slic(img, n_segments=n_segments, compactness=compactness, start_label=0)
     num_segments = labels.max() + 1
 
-    # Compute node features (average color per segment)
+    # Compute node features (average color per superpixel)
     avg_colors = np.array([img[labels == i].mean(axis=0) for i in range(num_segments)])
     x = torch.tensor(avg_colors, dtype=torch.float)
 
-    # Compute region adjacency graph
-    rag = rag_mean_color(img, labels)
-    edges = [[n1, n2] for n1, n2 in rag.edges()]
-    edge_index = torch.tensor(edges, dtype=torch.long).T
+    # Identify adjacency manually
+    boundaries = find_boundaries(labels, mode='thick')
+    adjacency = set()
 
-    # Compute edge attributes (color difference)
-    edge_attr = torch.tensor(
-        [rag[n1][n2]['weight'] for n1, n2 in rag.edges()],
-        dtype=torch.float
-    ).unsqueeze(1)  # Ensure shape [num_edges, 1]
+    for y in range(labels.shape[0] - 1):
+        for x_ in range(labels.shape[1] - 1):
+            current_label = labels[y, x_]
+            neighbors = [labels[y + 1, x_], labels[y, x_ + 1]]
+            for neighbor_label in neighbors:
+                if current_label != neighbor_label:
+                    edge = tuple(sorted([current_label, neighbor_label]))
+                    adjacency.add(edge)
 
-    return Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=torch.tensor([label]))
+    edge_index = torch.tensor(list(adjacency), dtype=torch.long).T
+
+    # Compute edge attributes (color difference between superpixels)
+    edge_attr = []
+    for n1, n2 in adjacency:
+        color_diff = np.linalg.norm(avg_colors[n1] - avg_colors[n2])
+        edge_attr.append([color_diff])
+
+    edge_attr = torch.tensor(edge_attr, dtype=torch.float)
+
+    return Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=torch.tensor([label])), img
+
 
 
 
@@ -86,7 +110,7 @@ def keypoint_graph(image_path,label):
     adjacency_matrix = nbrs.kneighbors_graph(points, k, mode='connectivity').tocoo()
     edge_index = torch.tensor(np.vstack([adjacency_matrix.row, adjacency_matrix.col]), dtype=torch.long)
 
-    return Data(x=x, edge_index=edge_index, edge_attr=torch.tensor([1]*edge_index.shape[1],dtype=torch.float), y=torch.tensor([label]))
+    return Data(x=x, edge_index=edge_index, edge_attr=torch.tensor([1]*edge_index.shape[1],dtype=torch.float), y=torch.tensor([label])),img
 
 
 def region_adjacency_graph(image_path,label):
@@ -109,7 +133,7 @@ def region_adjacency_graph(image_path,label):
         dtype=torch.float
     ).unsqueeze(1)
 
-    return Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=torch.tensor([label]))
+    return Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=torch.tensor([label])),img
 
 
 def feature_map_graph(image_path,label):
@@ -126,7 +150,7 @@ def feature_map_graph(image_path,label):
     x = feat.view(C, -1).T  # Flatten feature map into nodes
     edge_index, _ = grid(H, W)
 
-    return Data(x=x, edge_index=edge_index, edge_attr=torch.tensor([1]*edge_index.shape[1],dtype=torch.float), y=torch.tensor([label]))
+    return Data(x=x, edge_index=edge_index, edge_attr=torch.tensor([1]*edge_index.shape[1],dtype=torch.float), y=torch.tensor([label])),img
 
 
 
@@ -143,7 +167,7 @@ def mesh3d_graph(image_path,label):
 
     edge_index, _ = grid(H, W)
 
-    return Data(x=x, edge_index=edge_index, edge_attr=torch.tensor([1]*edge_index.shape[1],dtype=torch.float), y=torch.tensor([label]))
+    return Data(x=x, edge_index=edge_index, edge_attr=torch.tensor([1]*edge_index.shape[1],dtype=torch.float), y=torch.tensor([label])),img
 
 
 
@@ -175,116 +199,9 @@ def grid_graph(image_path,label, connectivity=4):
 
     edge_index = torch.tensor(edges, dtype=torch.long).T
 
-    return Data(x=x, edge_index=edge_index,edge_attr=torch.tensor([1]*edge_index.shape[1],dtype=torch.float), y=torch.tensor([label]))
+    return Data(x=x, edge_index=edge_index,edge_attr=torch.tensor([1]*edge_index.shape[1],dtype=torch.float), y=torch.tensor([label])),img
 
 
 
 
 
-
-def delaunay_graph(image_path, label):
-    """
-    Constructs a graph using Delaunay triangulation on SIFT keypoints.
-    Args:
-        image_path (str): Path to the input image.
-        label (int): Label for the graph.
-    Returns:
-        Data: PyTorch Geometric graph with x, edge_index, edge_attr, and y.
-    """
-    # Load and process image
-    _, gray = load_image(image_path)
-    
-    # Detect SIFT keypoints
-    sift = cv2.SIFT_create()
-    kp, _ = sift.detectAndCompute(gray, None)
-    if len(kp) == 0:
-        raise ValueError("No keypoints detected in the image!")
-
-    # Extract keypoint coordinates
-    points = np.array([k.pt for k in kp], dtype=np.float32)
-    
-    # Convert keypoints to a PyTorch tensor (node feature matrix)
-    X = torch.tensor(points, dtype=torch.float)
-    
-    # Perform Delaunay triangulation
-    tri = Delaunay(points)
-    
-    # Extract unique undirected edges
-    edges = set()
-    for simplex in tri.simplices:  # each simplex is a triangle (3 vertices)
-        for i, j in [(0, 1), (1, 2), (2, 0)]:
-            edge = tuple(sorted((simplex[i], simplex[j])))
-            edges.add(edge)
-    
-    # Convert edge list to edge_index tensor [2, num_edges]
-    edge_index = torch.tensor(list(edges), dtype=torch.long).t().contiguous()
-    
-    # Compute edge attributes (distance & angle)
-    edge_attr_list = []
-    for i, j in edges:
-        xi, yi = points[i]
-        xj, yj = points[j]
-        dist = sqrt((xj - xi)**2 + (yj - yi)**2)
-        angle = atan2(yj - yi, xj - xi)
-        edge_attr_list.append([dist, angle])
-    
-    edge_attr = torch.tensor(edge_attr_list, dtype=torch.float)
-    
-    # Create PyG Data object
-    data = Data(x=X, edge_index=edge_index, edge_attr=edge_attr, y=torch.tensor([label], dtype=torch.long))
-    return data
-
-
-
-
-
-def voronoi_graph(image_path, label):
-    """
-    Constructs a graph using a Voronoi diagram on SIFT keypoints.
-    Args:
-        image_path (str): Path to the input image.
-        label (int): Label for the graph.
-    Returns:
-        Data: PyTorch Geometric graph with x, edge_index, edge_attr, and y.
-    """
-    # Load and process image
-    _, gray = load_image(image_path)
-    
-    # Detect SIFT keypoints
-    sift = cv2.SIFT_create()
-    kp, _ = sift.detectAndCompute(gray, None)
-    if len(kp) == 0:
-        raise ValueError("No keypoints detected in the image!")
-
-    # Extract keypoint coordinates
-    points = np.array([k.pt for k in kp], dtype=np.float32)
-    
-    # Convert keypoints to a PyTorch tensor (node feature matrix)
-    X = torch.tensor(points, dtype=torch.float)
-    
-    # Compute Voronoi diagram
-    vor = Voronoi(points)
-    
-    # Extract Voronoi edges (ridge_points gives pairs of point indices)
-    edges = set()
-    for (p, q) in vor.ridge_points:
-        edge = tuple(sorted((p, q)))
-        edges.add(edge)
-    
-    # Convert edge list to edge_index tensor [2, num_edges]
-    edge_index = torch.tensor(list(edges), dtype=torch.long).t().contiguous()
-    
-    # Compute edge attributes (distance & angle)
-    edge_attr_list = []
-    for i, j in edges:
-        xi, yi = points[i]
-        xj, yj = points[j]
-        dist = sqrt((xj - xi)**2 + (yj - yi)**2)
-        angle = atan2(yj - yi, xj - xi)
-        edge_attr_list.append([dist, angle])
-    
-    edge_attr = torch.tensor(edge_attr_list, dtype=torch.float)
-    
-    # Create PyG Data object
-    data = Data(x=X, edge_index=edge_index, edge_attr=edge_attr, y=torch.tensor([label], dtype=torch.long))
-    return data

@@ -37,7 +37,9 @@ def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
     use_image_feats = args.use_image_feats
     dataset = []
     class_folders = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
-    graph_dataset_dir = f"{config['param']['graph_dataset_folder']}/{args.type_node_detector}/{type_dataset}"
+    project_root_dir = os.path.abspath(os.getcwd())
+
+    graph_dataset_dir = f"{project_root_dir}/dataset/graphs/{args.type_node_detector}/{type_dataset}"
     os.makedirs(graph_dataset_dir, exist_ok=True)
 
     for label, class_folder in tqdm(enumerate(class_folders)):
@@ -63,7 +65,7 @@ def image_to_graph(img_path, label,label_name,node_detector,apply_transforms=Tru
     graph_constructor_obj = importlib.import_module(f"build_dataset.build_dataset_utils")
     graph_constructor = getattr(graph_constructor_obj, node_detector,label)
     
-    data = graph_constructor(img_path,label)
+    data,img2 = graph_constructor(img_path,label)
     y = torch.tensor([label], dtype=torch.long)
     if use_image_feats==True:
          data.image_features=img2.unsqueeze(dim=0),
@@ -79,7 +81,7 @@ if __name__ == "__main__":
     set_seed()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_node_detector", default="grid_graph", type=str, help="define how to detect nodes", choices=["grid_graph", "superpixel_graph", "keypoint_graph", "region_adjacency_graph", "delaunay_graph", "feature_map_graph","mesh3d_graph", "voronoi_graph" ]) 
+    parser.add_argument("--type_node_detector", default="superpixel_graph", type=str, help="define how to detect nodes", choices=["grid_graph", "superpixel_graph", "keypoint_graph", "region_adjacency_graph", "delaunay_graph", "feature_map_graph","mesh3d_graph", "voronoi_graph" ]) 
     parser.add_argument("--apply_transform", default=True, type=bool, help="apply transform", choices=[True, False])
     parser.add_argument("--images_per_class", type=int, default=0, help="number of images to use for training/test per class; 0 means all")
     parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
