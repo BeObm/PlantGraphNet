@@ -454,7 +454,7 @@ def Load_graphdata(dataset_source_path):
     # Sorting labels and printing dataset details
     labels = list(dict(sorted(label_dict.items())).values())    
     feat_size = data.x.shape[1]
-
+    print(f"Graph dataset sample: {graph_list[0]}")
     return graph_list, feat_size, labels
 
 
