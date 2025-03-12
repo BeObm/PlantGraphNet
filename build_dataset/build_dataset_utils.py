@@ -203,5 +203,62 @@ def grid_graph(image_path,label, connectivity=4):
 
 
 
+def multi_graphs(image_path, label, n_segments=50, compactness=10):
+    """
+    Constructs multiple types of graphs and stores them in the same Data object with unique identifiers (x1, x2, etc.).
+    """
+    # Build individual graphs
+    superpixel_graph_data, img = superpixel_graph(image_path, label, n_segments=n_segments, compactness=compactness)
+    keypoint_graph_data, _ = keypoint_graph(image_path, label)
+    region_adjacency_graph_data, _ = region_adjacency_graph(image_path, label)
+    feature_map_graph_data, _ = feature_map_graph(image_path, label)
+    mesh3d_graph_data, _ = mesh3d_graph(image_path, label)
+    # grid_graph_data, _ = grid_graph(image_path, label, connectivity=4)
+
+    # Create the Data object with multiple graph components
+    multi_graph_data = Data(
+        # Superpixel Graph
+        x1=superpixel_graph_data.x,
+        y1=superpixel_graph_data.y,
+        edge_index1=superpixel_graph_data.edge_index,
+        edge_attr1=superpixel_graph_data.edge_attr,
+
+        # Keypoint Graph
+        x2=keypoint_graph_data.x,
+        y2=keypoint_graph_data.y,
+        edge_index2=keypoint_graph_data.edge_index,
+        edge_attr2=keypoint_graph_data.edge_attr,
+
+        # Region Adjacency Graph
+        x3=region_adjacency_graph_data.x,
+        y3=region_adjacency_graph_data.y,
+        edge_index3=region_adjacency_graph_data.edge_index,
+        edge_attr3=region_adjacency_graph_data.edge_attr,
+
+        # Feature Map Graph
+        x4=feature_map_graph_data.x,
+        y4=feature_map_graph_data.y,
+        edge_index4=feature_map_graph_data.edge_index,
+        edge_attr4=feature_map_graph_data.edge_attr,
+
+        # Mesh3D Graph
+        x5=mesh3d_graph_data.x,
+        y5=mesh3d_graph_data.y,
+        edge_index5=mesh3d_graph_data.edge_index,
+        edge_attr5=mesh3d_graph_data.edge_attr,
+
+        # # Grid Graph
+        # x6=grid_graph_data.x,
+        # y6=grid_graph_data.y,
+        # edge_index6=grid_graph_data.edge_index,
+        # edge_attr6=grid_graph_data.edge_attr,
+
+        # Label
+        y=torch.tensor([label])
+    )
+
+    return multi_graph_data,img
+
+
 
 

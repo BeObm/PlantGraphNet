@@ -1,5 +1,4 @@
 import argparse
-from model import *
 import importlib
 from datetime import datetime
 import torch
@@ -7,7 +6,7 @@ from torch_geometric.data import Data
 from tqdm import tqdm
 import os
 from PIL import Image
-from utils import *
+from  utils import *
 import torch
 import torchvision.models as models
 import multiprocessing
@@ -81,7 +80,7 @@ if __name__ == "__main__":
     set_seed()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_node_detector", default="superpixel_graph", type=str, help="define how to detect nodes", choices=["grid_graph", "superpixel_graph", "keypoint_graph", "region_adjacency_graph","feature_map_graph","mesh3d_graph" ]) 
+    parser.add_argument("--type_node_detector", default="superpixel_graph", type=str, help="define how to detect nodes", choices=["grid_graph", "superpixel_graph", "keypoint_graph", "region_adjacency_graph","feature_map_graph","mesh3d_graph","multi_graphs" ]) 
     parser.add_argument("--apply_transform", default=True, type=bool, help="apply transform", choices=[True, False])
     parser.add_argument("--images_per_class", type=int, default=0, help="number of images to use for training/test per class; 0 means all")
     parser.add_argument("--batch_size", type=int, default=32, help="batch_size")

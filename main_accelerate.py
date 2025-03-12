@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_graph", default="keypoint_graph", help="define how to construct nodes and egdes", choices=["grid_graph", "superpixel_graph", "keypoint_graph", "region_adjacency_graph", "delaunay_graph", "feature_map_graph","mesh3d_graph", "voronoi_graph"])
+    parser.add_argument("--type_graph", default="keypoint_graph", help="define how to construct nodes and egdes", choices=["grid_graph", "superpixel_graph", "keypoint_graph", "region_adjacency_graph", "feature_map_graph","mesh3d_graph", "multi_graphs"])
     parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=256, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=500, help="num_epochs")
