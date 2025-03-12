@@ -122,7 +122,7 @@ def region_adjacency_graph(image_path,label):
     rag = rag_mean_color(img, labels)
 
     num_regions = labels.max() + 1
-    x = torch.tensor([img[labels == i].mean(axis=0) for i in range(num_regions)], dtype=torch.float)
+    x = torch.tensor(np.array([img[labels == i].mean(axis=0) for i in range(num_regions)]), dtype=torch.float)
 
     edges = [[n1, n2] for n1, n2 in rag.edges()]
     edge_index = torch.tensor(edges, dtype=torch.long).T

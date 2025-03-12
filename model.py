@@ -188,7 +188,7 @@ class CNNModel(nn.Module):
 class GNNModel(torch.nn.Module):
     # Original image input feature count
 
-    def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2,image_feature=224,use_image_feats=False):
+    def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2,image_feature=150,use_image_feats=False):
         super(GNNModel, self).__init__()
 
         # Graph feature extraction (upgraded to more advanced GNN layers like GAT or GIN)
@@ -223,8 +223,8 @@ class GNNModel(torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(128, hidden_dim),  # Map final features to `hidden_dim`
             )
-            self.img_feature_fc = torch.nn.Linear(64, hidden_dim)  # Map image features to hidden dim
-            self.img_feature_fc = torch.nn.Linear(64, hidden_dim)  # Map image features to hidden dim
+            self.img_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)  # Map image features to hidden dim
+            self.img_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)  # Map image features to hidden dim
 
 
             self.fc = torch.nn.Linear(hidden_dim * 2, num_classes)  # Classifier
@@ -259,9 +259,9 @@ class GNNModel(torch.nn.Module):
 
         # Image feature processing
         if self.use_image_feats:
-            image_features=data.image_features
+            image_features=data.image_features.view(data.image_features.size(0), -1)
             img_features = image_features  # Assuming it's a 4D tensor for CNN ([batch, C, H, W])
-            img_features = self.img_cnn(img_features).view(img_features.size(0), -1)  # Flatten after pooling
+            img_features = self.img_cnn(img_features)  # Flatten after pooling
             img_features = self.img_feature_fc(img_features)
             combined_features = torch.cat([node_features, img_features], dim=1)  # Concatenate graph & image features
             combined_features = self.dropout(combined_features)  # Apply dropout
@@ -278,35 +278,6 @@ class GNNModel(torch.nn.Module):
 
 
 
-
-
-class GNNModel0(torch.nn.Module):
-    def __init__(self, num_node_features,hidden_dim, num_classes,Conv1,Conv2):
-        super(GNNModel, self).__init__()
-        self.conv1 = Conv1(num_node_features, hidden_dim*2)
-        self.conv2 = Conv2(hidden_dim*2, hidden_dim)
-        self.mlp_x0 = torch.nn.Linear(3, hidden_dim)
-
-        self.mlp_x = torch.nn.Linear(hidden_dim, hidden_dim)
-        self.fc = torch.nn.Linear(hidden_dim, num_classes)
-
-
-    def forward(self, data):
-        x, edge_index, img_feature,batch = data.x, data.edge_index.view(2,-1), data.image_features, data.batch
-
-        x0 = self.mlp_x0(img_feature)
-        x = relu(self.conv1(x, edge_index))
-        x = relu(self.conv2(x, edge_index))
-        x = global_add_pool(x, batch)  # Global add pooling
-        x = self.mlp_x(x)
-
-        print(f" Before cat| x0: {x0.shape} x: {x.shape}")
-        # xt = torch.cat([x0,x],1)
-        # print(f" After cat |x0: {x0.shape} x: {x.shape}, xt: {xt.shape}")
-
-        x = self.fc(x)
-
-        return log_softmax(x, dim=1)
 
 def train_function(model, dataloader, criterion, optimizer,accelerator):
     model.train()

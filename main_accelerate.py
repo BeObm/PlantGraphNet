@@ -19,12 +19,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--type_graph", default="keypoint_graph", help="define how to construct nodes and egdes", choices=["grid_graph", "superpixel_graph", "keypoint_graph", "region_adjacency_graph", "delaunay_graph", "feature_map_graph","mesh3d_graph", "voronoi_graph"])
-    parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
-    parser.add_argument("--hidden_dim", default=128, type=int, help="hidden_dim")
+    parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
+    parser.add_argument("--hidden_dim", default=256, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=500, help="num_epochs")
-    parser.add_argument("--batch_size", type=int, default=4*8, help="batch_size")
-    parser.add_argument("--learning_rate", type=float, default=0.01, help="learning_rate")
-    parser.add_argument("--wd", type=float, default=0.0005, help="wd")
+    parser.add_argument("--batch_size", type=int, default=4*32, help="batch_size")
+    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
+    parser.add_argument("--wd", type=float, default=0.0001, help="wd")
     parser.add_argument("--Conv1", default=GCNConv, help="Conv1")
     parser.add_argument("--Conv2", default=GCNConv, help="Conv2")
     parser.add_argument("--nb_gpus", default=4, help="number of GPUs")
@@ -61,7 +61,7 @@ if __name__ == "__main__":
                      num_classes=output_dim,
                      Conv1=args.Conv1,
                      Conv2=args.Conv2,
-                     image_feature=224,
+                     image_feature=67500,
                      use_image_feats=args.use_image_feats)
     
     

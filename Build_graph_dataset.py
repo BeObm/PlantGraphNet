@@ -66,9 +66,10 @@ def image_to_graph(img_path, label,label_name,node_detector,apply_transforms=Tru
     graph_constructor = getattr(graph_constructor_obj, node_detector,label)
     
     data,img2 = graph_constructor(img_path,label)
+   
     y = torch.tensor([label], dtype=torch.long)
-    if use_image_feats==True:
-         data.image_features=img2.unsqueeze(dim=0),
+    if use_image_feats==True and node_detector!="grid_graph":
+         data.image_features=torch.tensor(img2,dtype=torch.float).permute(2,0,1).unsqueeze(0)
          data.label_name=label_name
     else:
         data.label_name=label_name
@@ -76,22 +77,20 @@ def image_to_graph(img_path, label,label_name,node_detector,apply_transforms=Tru
 
 
 
-
 if __name__ == "__main__":
     set_seed()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_node_detector", default="superpixel_graph", type=str, help="define how to detect nodes", choices=["grid_graph", "superpixel_graph", "keypoint_graph", "region_adjacency_graph", "delaunay_graph", "feature_map_graph","mesh3d_graph", "voronoi_graph" ]) 
+    parser.add_argument("--type_node_detector", default="superpixel_graph", type=str, help="define how to detect nodes", choices=["grid_graph", "superpixel_graph", "keypoint_graph", "region_adjacency_graph","feature_map_graph","mesh3d_graph" ]) 
     parser.add_argument("--apply_transform", default=True, type=bool, help="apply transform", choices=[True, False])
     parser.add_argument("--images_per_class", type=int, default=0, help="number of images to use for training/test per class; 0 means all")
     parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
     parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
-    parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
-
+    parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
     args = parser.parse_args()
 
 
-    create_config_file(args.type_node_detector)
+    # create_config_file(args.type_node_detector)
     
     start_time = datetime.now()
     print(f" {'#'*10}  Creating training graph datasets...")
