@@ -70,7 +70,7 @@ if __name__ == "__main__":
     train_losses = []
     train_accuracies = []
     for epoch in range(num_epochs):
-        loss = train(model, train_loader, optimizer, criterion,device=device)
+        loss = train_function(model, train_loader, optimizer, criterion,device=device)
         train_losses.append(loss)
         if loss <= best_loss:
             best_loss = loss

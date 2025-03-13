@@ -1,247 +1,134 @@
 import torch
-from torch_geometric.data import Data
-from tqdm import tqdm
-import os
-from PIL import Image
-from utils import *
-import torch
-import torchvision.models as models
-import multiprocessing
-from PIL import Image
+import torchvision.transforms as transforms
+import cv2
 import numpy as np
 import os
-import networkx as nx
-import matplotlib.pyplot as plt
-import cv2
+from skimage.feature import graycomatrix, graycoprops, hog, local_binary_pattern
+from skimage.filters import sobel
+from torch.utils.data import Dataset, DataLoader
 
 
-# Build the PyTorch Geometric dataset using grid-based approach
-def build_dataset(dataset_path, args,type_dataset,apply_transform=True):
-    
-    nb_per_class=args.images_per_class
-    node_detector = args.type_node_detector
-    use_image_feats = args.use_image_feats
-    dataset = []
-    class_folders = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
-    graph_dataset_dir = f"{config['param']['graph_dataset_folder']}/{args.type_graph}/{type_dataset}"
-    os.makedirs(graph_dataset_dir, exist_ok=True)
+def load_image(image_path):
+    """ Load image and convert to tensor """
+    img = cv2.imread(image_path)
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    return img, img_rgb
 
-    for label, class_folder in tqdm(enumerate(class_folders)):
-        print(f"Contructing graph data for Class #{label}: {class_folder} ... \n ")
-        
-        class_path = os.path.join(dataset_path, class_folder)
-        if nb_per_class==0:
-          image_files = shuffle_dataset([f for f in os.listdir(class_path) if f.lower().endswith(('.png', '.jpg', '.jpeg','.tiff'))])
+
+def extract_color_histogram(img, bins=(8, 8, 8)):
+    """ Extract color histogram features """
+    hist = cv2.calcHist([img], [0, 1, 2], None, bins, [0, 256, 0, 256, 0, 256])
+    hist = cv2.normalize(hist, hist).flatten()
+    return hist
+
+
+def extract_texture_features(gray_img):
+    """ Extract texture features using GLCM """
+    glcm = graycomatrix(gray_img, distances=[1], angles=[0], levels=256, symmetric=True, normed=True)
+    contrast = graycoprops(glcm, 'contrast')[0, 0]
+    dissimilarity = graycoprops(glcm, 'dissimilarity')[0, 0]
+    homogeneity = graycoprops(glcm, 'homogeneity')[0, 0]
+    energy = graycoprops(glcm, 'energy')[0, 0]
+    correlation = graycoprops(glcm, 'correlation')[0, 0]
+    return np.array([contrast, dissimilarity, homogeneity, energy, correlation])
+
+
+def extract_edge_features(gray_img):
+    """ Extract edge features using Canny Edge Detector """
+    edges = cv2.Canny(gray_img, 100, 200)
+    edge_count = np.sum(edges) / 255
+    return np.array([edge_count])
+
+
+def extract_hog_features(gray_img):
+    """ Extract HOG (Histogram of Oriented Gradients) features """
+    features, _ = hog(gray_img, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True, multichannel=False)
+    return features
+
+
+def extract_lbp_features(gray_img, P=8, R=1):
+    """ Extract Local Binary Pattern (LBP) features """
+    lbp = local_binary_pattern(gray_img, P, R, method='uniform')
+    hist, _ = np.histogram(lbp.ravel(), bins=np.arange(0, P + 3), range=(0, P + 2))
+    hist = hist.astype(float) / hist.sum()  # Normalize histogram
+    return hist
+
+
+def extract_sobel_features(gray_img):
+    """ Extract Sobel edge features """
+    sobel_img = sobel(gray_img)
+    return np.array([np.mean(sobel_img), np.std(sobel_img)])
+
+
+class ImageFeatureDataset(Dataset):
+    def __init__(self, image_paths, labels, transform=None):
+        self.image_paths = image_paths
+        self.labels = labels
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        image_path = self.image_paths[idx]
+        label = self.labels[idx]
+
+        # Load image
+        img, img_rgb = load_image(image_path)
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Extract features
+        color_hist = extract_color_histogram(img)
+        texture_features = extract_texture_features(gray_img)
+        edge_features = extract_edge_features(gray_img)
+        hog_features = extract_hog_features(gray_img)
+        lbp_features = extract_lbp_features(gray_img)
+        sobel_features = extract_sobel_features(gray_img)
+
+        # Convert image to tensor
+        if self.transform:
+            img_tensor = self.transform(img_rgb)
         else:
-          image_files = shuffle_dataset([f for f in os.listdir(class_path) if f.lower().endswith(('.png', '.jpg', '.jpeg','.tiff'))])[:nb_per_class]
-        a = 1
-        with multiprocessing.Pool() as pool:
-            pool.starmap(image_to_graph, [(os.path.join(class_path, img_file), label, class_folder, node_detector, apply_transform, f"{graph_dataset_dir}/{label}_{idx}.pt",use_image_feats) for idx,img_file in enumerate(image_files)])
-        
-        # for idx,img_file in enumerate(image_files):
-        #     img_path = os.path.join(class_path, img_file)
-        #     image_to_graph(img_path=img_path,
-        #                    label=label,
-        #                    label_name=class_folder,
-        #                    apply_transforms=apply_transform,74
-                        #    output_path=f"{graph_dataset_dir}/{label}_{idx}.pt")
+            transform = transforms.Compose([transforms.ToPILImage(),
+                                            transforms.Resize((224, 224)),
+                                            transforms.ToTensor()])
+            img_tensor = transform(img_rgb)
 
-        print(f"Contructed {len(image_files)} graphs  for Class #{label}: {class_folder} \n")
+        # Concatenate all extracted features
+        additional_features = np.hstack((color_hist, texture_features, edge_features, hog_features, lbp_features, sobel_features))
+        additional_features_tensor = torch.tensor(additional_features, dtype=torch.float)
+
+        return img_tensor, additional_features_tensor, torch.tensor(label, dtype=torch.long)
 
 
+# Example usage
+def create_dataloader(image_folder, labels_dict, batch_size=16):
+    image_paths = [os.path.join(image_folder, img) for img in os.listdir(image_folder) if img.endswith(('.jpg', '.png'))]
+    labels = [labels_dict[os.path.basename(img)] for img in image_paths]
+
+    transform = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize((224, 224)),
+        transforms.ToTensor()
+    ])
+
+    dataset = ImageFeatureDataset(image_paths, labels, transform=transform)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    return dataloader
 
 
-def image_to_graph(img_path, label,label_name,node_detector,apply_transforms=True, output_path="data/graph_data.pt", use_image_feats=False):
-    print(f"Processing image: {img_path}")
-    img = cv2.imread(img_path)
-    # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img2=Image.open(img_path).convert('RGB')
+# Example data directory and labels
+data_dir = "path_to_images"
+labels_dict = {"image1.jpg": 0, "image2.jpg": 1}  # Example labels
 
+dataloader = create_dataloader(data_dir, labels_dict)
 
-   
-    try:
-   
-        keypoints, descriptors0 = extract_sift(img)
-        descriptors = (descriptors0 - descriptors0.min()) / (descriptors0.max() - descriptors0.min())
-        x1, edge_index1, edge_attr1= construct_graph_with_pixel_features(keypoints, descriptors, img,distance_threshold=50,similarity_treshold=100, patch_size=32, type="sift")
-
-        
-        keypoints, descriptors0 = extract_akaze(img)
-        descriptors = (descriptors0 - descriptors0.min()) / (descriptors0.max() - descriptors0.min())
-        x2, edge_index2, edge_attr2= construct_graph_with_pixel_features(keypoints, descriptors, img,distance_threshold=50,similarity_treshold=100, patch_size=32, type="akaze")
-        
-        keypoints, descriptors0 = extract_orb(img)
-        descriptors = (descriptors0 - descriptors0.min()) / (descriptors0.max() - descriptors0.min())
-        x3, edge_index3, edge_attr3= construct_graph_with_pixel_features(keypoints, descriptors, img,distance_threshold=50,similarity_treshold=100, patch_size=32, type="orb")
-    except:
-        print(f"Error in processing image: {img_path}")
-        raise Exception(f"Error in processing image: {img_path}")
-    
-     # keypoints, descriptors0 = extract_harris(img)
-    # descriptors = (descriptors0 - descriptors0.min()) / (descriptors0.max() - descriptors0.min())
-    # x1, edge_index1, edge_attr1= construct_graph_with_pixel_features(keypoints, descriptors, img,distance_threshold=50,similarity_treshold=100, patch_size=32, type="harris")
-
-   
-#    x1=x1, edge_index1=edge_index1, edge_attr1=edge_attr1,
-    y = torch.tensor([label], dtype=torch.long)
-    if use_image_feats==True:
-        data=Data( x1=x1, edge_index1=edge_index1, edge_attr1=edge_attr1,x2=x2, edge_index2=edge_index2, edge_attr2=edge_attr2, x3=x3, edge_index3=edge_index3, edge_attr3=edge_attr3, y=y, image_features=img2.unsqueeze(dim=0),label_name=label_name)
-    else:
-        data=Data(x1=x1, edge_index1=edge_index1, edge_attr1=edge_attr1, x2=x2, edge_index2=edge_index2, edge_attr2=edge_attr2, x3=x3, edge_index3=edge_index3, edge_attr3=edge_attr3, y=y,label_name=label_name)
-        
-    torch.save(data, output_path)
+# Iterate through the dataset
+for images, features, labels in dataloader:
+    print("Image Tensor Shape:", images.shape)
+    print("Additional Features Shape:", features.shape)
+    print("Labels:", labels)
 
 
 
-
-def construct_graph_with_pixel_features(keypoints, descriptors, img, distance_threshold=50,similarity_treshold=100, patch_size=32, type="sift"):
-    """
-    Constructs a graph with keypoints as nodes, incorporating pixel features from patches around the keypoints.
-    
-    Parameters:
-        keypoints (list): List of detected keypoints.
-        descriptors (numpy.ndarray): Descriptors corresponding to the keypoints.
-        img (ndarray): The original image.
-        distance_threshold (float): Threshold for spatial proximity to connect keypoints.
-        patch_size (int): Size of the patch around each keypoint to extract as node feature.
-        
-    Returns:
-        Data: PyTorch Geometric graph data with pixel features.
-    """
-    G = nx.Graph()
-
-    # Add nodes (keypoints) to the graph with pixel features
-    for i, kp in enumerate(keypoints):
-        pixel_feature = extract_patch_features(img, kp, patch_size)
-        position = torch.tensor([kp.pt[0], kp.pt[1]], dtype=torch.float32)  # Position feature
-        
-        # Combine pixel feature and position
-        node_feature = torch.cat((pixel_feature.view(-1), position))  # Flatten the patch and concatenate position
-        G.add_node(i, x=node_feature)
-
-    # Create edges based on proximity and/or descriptor similarity
-    for i, kp1 in enumerate(keypoints):
-        for j, kp2 in enumerate(keypoints):
-            if i < j:
-                dist = np.linalg.norm(np.array(kp1.pt) - np.array(kp2.pt))
-                if dist < distance_threshold:
-                    # Calculate descriptor distance (Euclidean distance between descriptors)
-                    if type=="orb":
-                        descriptor_distance = cv2.norm(descriptors[i], descriptors[j], normType=cv2.NORM_L2)    
-                    else:
-                        #  descriptor_distance = np.linalg.norm(descriptors[i] - descriptors[j])
-                        descriptor_distance = cv2.norm(descriptors[i], descriptors[j], cv2.NORM_L2) 
-                    if descriptor_distance < similarity_treshold:  # Threshold for similarity 
-    
-                        G.add_edge(i, j, weight=dist)
-
-    # Extract edge information for PyTorch Geometric
-    edge_index = []
-    edge_attr = []
-    
-    for i, j, data in G.edges(data=True):
-        edge_index.append([i, j])
-        edge_attr.append(data['weight'])
-    
-    edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
-    edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
-
-    # Extract node features (concatenated pixel features and position)
-    x = torch.stack([G.nodes[i]['x'] for i in range(len(keypoints))], dim=0)
-
-    # Create a PyTorch Geometric data object
-    data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
-    print(f"Data: {data}")
-    return x, edge_index, edge_attr
-
-
-def extract_sift(img):
-    sift = cv2.SIFT_create()  # OpenCV 4.4+ no need for contrib module
-    keypoints, descriptors = sift.detectAndCompute(img, None)
-    descriptors = cv2.normalize(descriptors, None, norm_type=cv2.NORM_L2)
-    return keypoints, descriptors
-
-def extract_orb(img):
-    orb = cv2.ORB_create()
-    keypoints, descriptors = orb.detectAndCompute(img, None)
-    return keypoints, descriptors
-
-def extract_fast(img):
-    fast = cv2.FastFeatureDetector_create()
-    keypoints = fast.detect(img, None)
-    descriptors = np.array([kp.pt for kp in keypoints], dtype=np.float32)
-    return keypoints, descriptors
-
-def extract_akaze(img):
-    akaze = cv2.AKAZE_create()
-    keypoints, descriptors = akaze.detectAndCompute(img, None)
-    return keypoints, descriptors
-
-
-def extract_harris(img, block_size=2, ksize=3, k=0.04, threshold=0.01):
-    """
-    Detect corners using Harris Corner Detection.
-    
-    Parameters:
-        img (ndarray): The grayscale image.
-        block_size (int): The size of the neighborhood considered for corner detection.
-        ksize (int): Aperture parameter for the Sobel operator.
-        k (float): Harris detector free parameter.
-        threshold (float): Threshold to consider a corner.
-        
-    Returns:
-        keypoints (list): List of keypoints (corners).
-        descriptors (ndarray): Descriptors (pixel values around keypoints).
-    """
-    # Harris Corner detection
-    img_harris = cv2.cornerHarris(img, block_size, ksize, k)
-    
-    # Normalize and threshold Harris response to get the corners
-    img_harris = cv2.dilate(img_harris, None)
-    corners = np.argwhere(img_harris > threshold * img_harris.max())
-    
-    # Create keypoints from corner locations
-    keypoints = [cv2.KeyPoint(corner[1], corner[0], _size=1) for corner in corners]
-    
-    # Create descriptors (simple example: just the surrounding pixels as descriptors)
-    descriptors = np.array([extract_patch_features(img, kp).numpy().flatten() for kp in keypoints])
-    
-    return keypoints, descriptors
-
-def extract_patch_features(img, keypoint, patch_size=32):
-    """
-    Extract a patch of pixels centered around the keypoint.
-    
-    Parameters:
-        img (ndarray): Input image (grayscale or color).
-        keypoint (cv2.KeyPoint): Keypoint from which to extract the patch.
-        patch_size (int): Size of the patch to extract.
-        
-    Returns:
-        patch (torch.Tensor): Normalized pixel values from the patch.
-    """
-    x, y = int(keypoint.pt[0]), int(keypoint.pt[1])
-    
-    # Define patch boundaries
-    half_size = patch_size // 2
-    x1, x2 = max(x - half_size, 0), min(x + half_size, img.shape[1])
-    y1, y2 = max(y - half_size, 0), min(y + half_size, img.shape[0])
-    
-    # Extract the patch
-    patch = img[y1:y2, x1:x2]
-    
-    # If the patch size is smaller than desired, pad it with zeros
-    if patch.shape != (patch_size, patch_size):
-        patch = cv2.copyMakeBorder(patch, 0, patch_size - patch.shape[0], 0, patch_size - patch.shape[1], cv2.BORDER_CONSTANT, value=0)
-
-    # Normalize the patch (optional: normalization helps neural networks)
-    patch = patch.astype(np.float32) / 255.0  # Normalize to [0, 1] range
-    # return torch.tensor(patch).view(1, patch_size, patch_size)  # Reshape for PyTorch (1, patch_size, patch_size)
-    return torch.tensor(patch)  
-
-
-
-def pixel_to_index(x, y, width):
-    """Convert 2D pixel coordinates to a flattened index."""
-    return x * width + y
 

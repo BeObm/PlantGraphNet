@@ -427,7 +427,7 @@ def graphdata_loader(graph_list,batch_size,type_data="train",ddp=True):
 
     return dataset_loader
 
-def Load_graphdata(dataset_source_path):
+def Load_graphdata(dataset_source_path,type_graph="multi_graph"):
     set_seed()
     graph_list = []
     label_dict = {}
@@ -452,10 +452,21 @@ def Load_graphdata(dataset_source_path):
         
         graph_list.append(data)
     # Sorting labels and printing dataset details
-    labels = list(dict(sorted(label_dict.items())).values())    
-    feat_size = data.x.shape[1]
+    labels = list(dict(sorted(label_dict.items())).values())   
+    
     print(f"Graph dataset sample: {graph_list[0]}")
-    return graph_list, feat_size, labels
+    
+    feat_size_list = []	
+    if type_graph=="multi_graphs":
+        feat_size_list.append(data.x1.shape[1])
+        feat_size_list.append(data.x2.shape[1])
+        feat_size_list.append(data.x3.shape[1])
+        feat_size_list.append(data.x4.shape[1])
+        feat_size_list.append(data.x5.shape[1])
+    else:
+        feat_size_list.append(data.x.shape[1])
+    
+    return graph_list, feat_size_list, labels
 
 
 

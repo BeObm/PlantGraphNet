@@ -58,7 +58,7 @@ if __name__ == "__main__":
             print(f"Loaded saved model from {saved_model_path}")
         except:
             pass
-    print(f" Sample weights: {len(sample_weights)}: {sample_weights}")
+    # print(f" Sample weights: {len(sample_weights)}: {sample_weights}")
     criterion = nn.CrossEntropyLoss(reduction='mean')
         # criterion = nn.CrossEntropyLoss(weight=torch.tensor(sample_weights).to(accelerator.device),reduction='mean')
 

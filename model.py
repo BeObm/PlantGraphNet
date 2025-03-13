@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import classification_report
 from torch.cuda.amp import autocast, GradScaler
+from torchvision import models
 
 
 class CNNModel(nn.Module):
@@ -185,7 +186,7 @@ class CNNModel(nn.Module):
 
 
 
-class GNNModel(torch.nn.Module):
+class GNNModel0(torch.nn.Module):
     # Original image input feature count
 
     def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2,image_feature=150,use_image_feats=False):
@@ -193,7 +194,7 @@ class GNNModel(torch.nn.Module):
 
         # Graph feature extraction (upgraded to more advanced GNN layers like GAT or GIN)
 
-        self.graph_conv1 = Conv1(num_node_features, hidden_dim )
+        self.graph_conv1 = Conv1(num_node_features[0], hidden_dim )
         self.batch_norm1= torch.nn.BatchNorm1d(hidden_dim)
         self.act=torch.nn.ReLU()
         self.use_image_feats=use_image_feats
@@ -275,6 +276,79 @@ class GNNModel(torch.nn.Module):
 
 
         return log_softmax(output, dim=1)
+
+
+
+
+class GNNModel(torch.nn.Module):
+    def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2,image_feature=150, use_image_feats=False):
+        super(GNNModel, self).__init__()
+
+        # Graph feature extraction layers
+        self.graph_conv1 = Conv1(num_node_features[0], hidden_dim)
+        self.batch_norm1 = torch.nn.BatchNorm1d(hidden_dim)
+        self.act = torch.nn.ReLU()
+        self.use_image_feats = use_image_feats
+        
+        self.graph_conv2 = Conv2(hidden_dim, hidden_dim)
+        self.batch_norm2 = torch.nn.BatchNorm1d(hidden_dim)
+
+        self.graph_conv3 = Conv2(hidden_dim, hidden_dim)
+        self.batch_norm3 = torch.nn.BatchNorm1d(hidden_dim)
+        
+        self.node_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)  # Node feature transformation
+
+        if self.use_image_feats:
+            # Load a pretrained ResNet model for image feature extraction
+            resnet = models.resnet50(pretrained=True)
+            self.image_feature_extractor = torch.nn.Sequential(*list(resnet.children())[:-1])  # Remove last FC layer
+            self.img_feature_fc = torch.nn.Linear(2048, hidden_dim)  # Map ResNet features to hidden_dim
+            
+            self.fc = torch.nn.Linear(hidden_dim * 2, num_classes)  # Classifier combining graph & image features
+        else:
+            self.fc = torch.nn.Linear(hidden_dim, num_classes)
+
+        self.dropout = torch.nn.Dropout(p=0.2)
+
+    def forward(self, data):
+        # Graph feature processing
+        node_features = data.x
+        edge_index = data.edge_index.view(2, -1)
+        edge_attr = data.edge_attr
+        batch = data.batch
+        
+        node_features = self.graph_conv1(node_features, edge_index, edge_attr)
+        node_features = self.batch_norm1(node_features)
+        node_features = self.act(node_features)
+
+        node_features = self.graph_conv2(node_features, edge_index, edge_attr)
+        node_features = self.batch_norm2(node_features)
+        node_features = self.act(node_features)
+
+        node_features = self.graph_conv3(node_features, edge_index, edge_attr)
+        node_features = self.batch_norm3(node_features)
+        node_features = self.act(node_features)
+        
+        node_features = global_add_pool(node_features, batch)  # Global pooling for graph features
+        node_features = self.node_feature_fc(node_features)
+
+        # Image feature processing
+        if self.use_image_feats:
+            image_features = data.image_features  # Assuming images are already preprocessed to (batch, 3, H, W)
+            img_features = self.image_feature_extractor(image_features)
+            img_features = img_features.view(img_features.size(0), -1)  # Flatten
+            img_features = self.img_feature_fc(img_features)
+            
+            combined_features = torch.cat([node_features, img_features], dim=1)  # Concatenate graph & image features
+            combined_features = self.dropout(combined_features)
+            output = self.fc(combined_features)
+        else:
+            output = self.fc(node_features)
+
+        return F.log_softmax(output, dim=1)
+
+
+
 
 
 

@@ -1,7 +1,7 @@
 import argparse
 from datetime import datetime
-from torch_geometric.nn import GENConv, GATConv,TransformerConv, MixHopConv,AntiSymmetricConv,GeneralConv,PDNConv,FAConv,WLConvContinuous,GCN2Conv,PNAConv,LEConv,GCNConv
-from torch_geometric.nn import GatedGraphConv, NNConv, SplineConv, GMMConv, DNAConv, SSGConv,SGConv,ARMAConv,GINEConv,TAGConv,GATv2Conv,GraphConv,SimpleConv
+from torch_geometric .nn import GCNConv, SAGEConv,GraphConv,ResGatedGraphConv,GATConv,GATv2Conv,TransformerConv,TAGConv,ARMAConv,SGConv,SSGConv,MFConv,GMMConv,SplineConv,NNConv,FeaStConv,LEConv
+from torch_geometric.nn import PNAConv,ClusterGCNConv,PANConv,SuperGATConv,FAConv,EGConv,GeneralConv,MixHopConv
 from tqdm import tqdm
 import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
@@ -9,6 +9,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from model import *
 import os
 import gc
+from copy import deepcopy
 from accelerate import Accelerator, InitProcessGroupKwargs
 
    
@@ -18,15 +19,15 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_graph", default="keypoint_graph", help="define how to construct nodes and egdes", choices=["grid_graph", "superpixel_graph", "keypoint_graph", "region_adjacency_graph", "feature_map_graph","mesh3d_graph", "multi_graphs"])
+    parser.add_argument("--type_graph", default="superpixel_graph", help="define how to construct nodes and egdes", choices=["grid_graph", "superpixel_graph", "keypoint_graph", "region_adjacency_graph", "feature_map_graph","mesh3d_graph", "multi_graphs"])
     parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=256, type=int, help="hidden_dim")
-    parser.add_argument("--num_epochs", type=int, default=500, help="num_epochs")
+    parser.add_argument("--num_epochs", type=int, default=200, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=4*32, help="batch_size")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.0001, help="wd")
-    parser.add_argument("--Conv1", default=GCNConv, help="Conv1")
-    parser.add_argument("--Conv2", default=GCNConv, help="Conv2")
+    parser.add_argument("--Conv1", default=LEConv, help="Conv1")
+    parser.add_argument("--Conv2", default=LEConv, help="Conv2")
     parser.add_argument("--nb_gpus", default=4, help="number of GPUs")
     parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
     
@@ -56,7 +57,17 @@ if __name__ == "__main__":
     num_epochs = args.num_epochs
     batch_size = args.batch_size
     set_seed()
-    model = GNNModel(num_node_features=input_dim,
+    
+    if args.type_graph == "multi_graphs":
+        model=MultiGraphModel(num_node_features=input_dim,
+                              hidden_dim=hidden_dim,
+                              num_classes=output_dim,
+                              Conv1=args.Conv1,
+                              Conv2=args.Conv2,
+                              image_feature=67500,
+                              use_image_feats=args.use_image_feats)
+    else:
+        model = GNNModel(num_node_features=input_dim,
                      hidden_dim=hidden_dim,
                      num_classes=output_dim,
                      Conv1=args.Conv1,
@@ -78,7 +89,7 @@ if __name__ == "__main__":
     model, optimizer, train_loader, test_loader = accelerator.prepare(model, optimizer, train_loader,test_loader)
 
 
-    for epoch in range(num_epochs):
+    for epoch in range(1,num_epochs+1):
         loss = train_function(model=model,
                               dataloader=train_loader, 
                               optimizer=optimizer, 
@@ -87,10 +98,13 @@ if __name__ == "__main__":
         train_losses.append(loss)
         if loss <= best_loss:
             best_loss = loss
-            pbar.set_description(f"Training model.|Best loss={round(best_loss, 5)}")
-        pbar.write(f'Epoch [{epoch}/{num_epochs}]: Loss: {round(loss, 5)}')
+            best_model=deepcopy(model)
+        if epoch % 10 == 0:
+            torch.save(best_model.state_dict(), f"results/GNN_Models/{args.type_graph}_best_model.pth")
+        pbar.write(f'\n Epoch [{epoch}/{num_epochs}]: Loss: {round(loss, 5)} | Current best loss: {round(best_loss, 5)}')
         pbar.update(1)
         
+    model=best_model
     print(f"Time taken to train the model: { datetime.now() - start_time}")
 
     plot_and_save_training_performance(num_epochs=num_epochs,
