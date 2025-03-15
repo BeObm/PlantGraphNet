@@ -23,7 +23,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=256, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=200, help="num_epochs")
-    parser.add_argument("--batch_size", type=int, default=4*32, help="batch_size")
+    parser.add_argument("--batch_size", type=int, default=4*16, help="batch_size")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.0001, help="wd")
     parser.add_argument("--Conv1", default=LEConv, help="Conv1")
@@ -59,13 +59,7 @@ if __name__ == "__main__":
     set_seed()
     
     if args.type_graph == "multi_graphs":
-        model=MultiGraphModel(num_node_features=input_dim,
-                              hidden_dim=hidden_dim,
-                              num_classes=output_dim,
-                              Conv1=args.Conv1,
-                              Conv2=args.Conv2,
-                              image_feature=67500,
-                              use_image_feats=args.use_image_feats)
+        pass
     else:
         model = GNNModel(num_node_features=input_dim,
                      hidden_dim=hidden_dim,
