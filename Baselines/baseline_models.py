@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torchvision.models as models
 
@@ -141,3 +142,44 @@ def GoogleNet_Model(num_classes):
         nn.Linear(256, num_classes)
     )
     return model
+
+
+# Define the Hybrid Model
+class HybridImageClassifier(nn.Module):
+    def __init__(self, num_classes, feature_size):
+        super(HybridImageClassifier, self).__init__()
+
+        # CNN Backbone (Using a Pretrained ResNet18)
+        self.cnn = models.resnet18(pretrained=True)
+        self.cnn.fc = nn.Identity()  # Remove last FC layer to get feature embeddings
+        cnn_output_size = 512  # ResNet18 output feature size
+
+        # Additional Feature Processing
+        self.feature_fc = nn.Sequential(
+            nn.Linear(feature_size, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU()
+        )
+
+        # Fusion Layer (Combining CNN & Extracted Features)
+        self.fusion_fc = nn.Sequential(
+            nn.Linear(cnn_output_size + 128, 128),
+            nn.ReLU(),
+            nn.Linear(128, num_classes)
+        )
+
+    def forward(self, image, additional_features):
+        # Process image through CNN
+        image_features = self.cnn(image)
+
+        # Process additional extracted features
+        extracted_features = self.feature_fc(additional_features)
+
+        # Concatenate CNN features with additional extracted features
+        fused_features = torch.cat((image_features, extracted_features), dim=1)
+
+        # Pass through the final classifier
+        output = self.fusion_fc(fused_features)
+
+        return output

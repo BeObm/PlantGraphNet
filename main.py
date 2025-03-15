@@ -83,7 +83,7 @@ if __name__ == "__main__":
                                        losses=train_losses,
                                        folder_name=config['param']['result_folder'])
 
-    cls_report = test(model=model,
+    cls_report = test_function(model=model,
                         loader=test_loader,
                         device=device,
                         class_names=class_names)

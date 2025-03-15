@@ -3,11 +3,11 @@ import pandas as pd
 import os
 from accelerate import Accelerator, InitProcessGroupKwargs
 import torch.nn as nn
-from model import CNNModel
+from model import CNNModel,HybridImageClassifier
 import torch
 import torch.optim as optim
 from Baselines.baseline_models import baseline_model
-from train_test_model import train_model, test_model
+from train_test_model import train_model, test_model,train_hybrid_model
 from datetime import datetime
 from utils import *
 
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--dataset_name", help="dataset name", default="lidl", choices=["lidl", "other"])
-    parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="baseline", choices=["baseline", "Our_CNN_Model"])
+    parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="hybrid", choices=["baseline", "Our_CNN_Model","hybrid"])
     parser.add_argument("--model_name", help="Model name", default="ResNet50", choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet"])
     parser.add_argument("--dataset_size", type=int, default=0, help="number  of images to use for training per class, 0 means all")
     parser.add_argument("--use_class_weights", default=True, type=bool, help="use class weights", choices=[True, False])
@@ -34,14 +34,28 @@ if __name__ == "__main__":
     train_data= "dataset/images/train"
     val_data = "dataset/images/val"
     test_data = "dataset/images/test"
-    num_classes, train_loader,val_loader, test_loader, class_names, sample_weights = load_data(dataset_dir=[train_data,val_data,test_data], batch_size=args.batch_size, num_samples_per_class=args.dataset_size, use_class_weights=args.use_class_weights)
-
+    
+    if args.type_model!="hybrid":
+        num_classes, train_loader,val_loader, test_loader, class_names, sample_weights = load_data(dataset_dir=[train_data,val_data,test_data], batch_size=args.batch_size, num_samples_per_class=args.dataset_size, use_class_weights=args.use_class_weights)
+    elif args.type_model=="hybrid":
+        train_loader, label_encoder = create_dataloader(train_data,args.batch_size)
+        val_loader, _ = create_dataloader(val_data,args.batch_size)
+        test_loader, _ = create_dataloader(test_data, args.batch_size)
+        
+        num_classes = len(label_encoder.classes_)
+        
+        sample_image, sample_features, _ = next(iter(train_loader))
+        feature_size = sample_features.shape[1]
+            
     start_time = datetime.now()
     if args.type_model == "baseline":
         model = baseline_model(model_name=args.model_name, num_classes=num_classes)
     elif args.type_model == "Our_CNN_Model":
         model = CNNModel()
         args.model_name = "New_CNN_Model"
+    elif args.type_model=="hybrid":
+        model=HybridImageClassifier(num_classes=num_classes,feature_size=feature_size)
+        args.model_name = "Hybrid_Model"
         
     print(f"Model: {args.model_name} | device: {accelerator.device}")
 
@@ -58,16 +72,18 @@ if __name__ == "__main__":
             print(f"Loaded saved model from {saved_model_path}")
         except:
             pass
-    # print(f" Sample weights: {len(sample_weights)}: {sample_weights}")
     criterion = nn.CrossEntropyLoss(reduction='mean')
-        # criterion = nn.CrossEntropyLoss(weight=torch.tensor(sample_weights).to(accelerator.device),reduction='mean')
 
     optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=0.0001)
     
     
-    model, optimizer, train_loader, test_loader = accelerator.prepare(model, optimizer, train_loader,test_loader)
+    model, optimizer, train_loader, val_loader,test_loader = accelerator.prepare(model, optimizer, train_loader,val_loader,test_loader)
 
-    model=train_model(model,accelerator, train_loader, criterion, optimizer, args=args)
+    if args.type_model=="hybrid":
+         model=train_hybrid_model(model,accelerator, train_loader, val_loader,criterion, optimizer, args=args)
+    else:
+        model=train_model(model,accelerator, train_loader, val_loader,criterion, optimizer, args=args)
+        
     # torch.save(model.state_dict(), saved_model_path)
     end_time = datetime.now()
     cl_report = test_model(model, accelerator,test_loader, class_names,args=args)

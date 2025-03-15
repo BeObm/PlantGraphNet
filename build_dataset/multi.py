@@ -126,8 +126,4 @@ def create_dataloader(data_dir, batch_size=16):
 data_dir = r"C:\Users\au783153\OBM\CODES\HeathlandSpeciesClassifier\dataset\images\train"  # Change this to your dataset directory
 dataloader, label_encoder = create_dataloader(data_dir)
 
-# Iterate through the dataset
-for images, features, labels in dataloader:
-    print("Image Tensor Shape:", images.shape)
-    print("Additional Features Shape:", features.shape)
-    print("Labels:", labels)
+print(label_encoder)

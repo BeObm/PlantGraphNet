@@ -10,7 +10,7 @@ from torchvision import models
 
 
 class CNNModel(nn.Module):
-    def __init__(self, num_classes=10):  # num_classes can be adjusted for your dataset
+    def __init__(self, num_classes=10,feature_siz=3):  # num_classes can be adjusted for your dataset
         super(CNNModel, self).__init__()
         
         a0=2048
@@ -184,6 +184,44 @@ class CNNModel(nn.Module):
 
 
 
+class HybridImageClassifier(nn.Module):
+    def __init__(self, num_classes, feature_size):
+        super(HybridImageClassifier, self).__init__()
+
+        # CNN Backbone (Using a Pretrained ResNet18)
+        self.cnn = models.resnet18(pretrained=True)
+        self.cnn.fc = nn.Identity()  # Remove last FC layer to get feature embeddings
+        cnn_output_size = 512  # ResNet18 output feature size
+
+        # Additional Feature Processing
+        self.feature_fc = nn.Sequential(
+            nn.Linear(feature_size, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU()
+        )
+
+        # Fusion Layer (Combining CNN & Extracted Features)
+        self.fusion_fc = nn.Sequential(
+            nn.Linear(cnn_output_size + 128, 128),
+            nn.ReLU(),
+            nn.Linear(128, num_classes)
+        )
+
+    def forward(self, image, additional_features):
+        # Process image through CNN
+        image_features = self.cnn(image)
+
+        # Process additional extracted features
+        extracted_features = self.feature_fc(additional_features)
+
+        # Concatenate CNN features with additional extracted features
+        fused_features = torch.cat((image_features, extracted_features), dim=1)
+
+        # Pass through the final classifier
+        output = self.fusion_fc(fused_features)
+
+        return output
 
 
 class GNNModel0(torch.nn.Module):
@@ -275,7 +313,7 @@ class GNNModel0(torch.nn.Module):
 
 
 
-        return log_softmax(output, dim=1)
+        return output
 
 
 
@@ -345,7 +383,7 @@ class GNNModel(torch.nn.Module):
         else:
             output = self.fc(node_features)
 
-        return F.log_softmax(output, dim=1)
+        return output
 
 
 
@@ -361,22 +399,29 @@ def train_function(model, dataloader, criterion, optimizer,accelerator):
         output = model(batch)
         loss = criterion(output, batch.y)
         accelerator.backward(loss)
-        loss_all += batch.num_graphs * loss.item()
         optimizer.step()
+        loss_all += batch.num_graphs * loss.item()
+       
     return loss_all / len(dataloader) 
 
 
 @torch.no_grad()
 def test_function(accelerator, model, test_loader, class_names):
     model.eval()
+    
     true_labels = []
     pred_labels = []
+    
     filename = f"{config['param']['result_folder']}/confusion_matrix.pdf"
-    for data in test_loader:  # Iterate in batches over the training/test dataset.
-        targets= data.y
-        pred = model(data).max(dim=1)[1]
+    
+    for data in test_loader:  
+        targets= data.y.to(accelerator.device)
+        logits = model(data)
+        pred= torch.argmax(logits,dim=1)
+        
         all_targets =accelerator.gather(targets)
         all_pred = accelerator.gather(pred)
+        
         true_labels.extend(all_targets.detach().cpu().numpy())
         pred_labels.extend(all_pred.detach().cpu().numpy())
     
@@ -393,56 +438,29 @@ def test_function(accelerator, model, test_loader, class_names):
     
 
 
-@torch.no_grad()
-def test(model, loader,device,class_names):
-    filename = f"{config['param']['result_folder']}/confusion_matrix.pdf"
-    print(f"class name size is {len(class_names)}")
-    model.eval()
-    y_true = []
-    y_pred = []
-    with torch.no_grad():
-        for data in loader:
-            data.to(device)
-            out = model(data)
-            pred = out.argmax(dim=1)
-            y_true.extend(data.y.tolist())
-            y_pred.extend(pred.tolist())
+# @torch.no_grad()
+# def test(model, loader,device,class_names):
+#     filename = f"{config['param']['result_folder']}/confusion_matrix.pdf"
+#     print(f"class name size is {len(class_names)}")
+#     model.eval()
+#     y_true = []
+#     y_pred = []
+#     with torch.no_grad():
+#         for data in loader:
+#             data.to(device)
+#             out = model(data)
+#             pred = out.argmax(dim=1)
+#             y_true.extend(data.y.tolist())
+#             y_pred.extend(pred.tolist())
             
    
-    plot_confusion_matrix(y_true=y_true,
-                          y_pred=y_pred,
-                          class_names=class_names,
-                          file_name=filename
-                          )
-    print(f"Confusion Matrix for the GNN model is saved in {filename}")
+#     plot_confusion_matrix(y_true=y_true,
+#                           y_pred=y_pred,
+#                           class_names=class_names,
+#                           file_name=filename
+#                           )
+#     print(f"Confusion Matrix for the GNN model is saved in {filename}")
 
-    cls_report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
+#     cls_report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
 
-    return cls_report
-
-@torch.no_grad()
-def test_ddp(model, loader,class_names):
-    filename = f"{config['param']['result_folder']}/confusion_matrix.pdf"
-    print(f"class name size is {len(class_names)}")
-    model.eval()
-    y_true = []
-    y_pred = []
-    with torch.no_grad():
-        for data in loader:
-           
-            out = model(data)
-            pred = out.argmax(dim=1)
-            y_true.extend(data.y.tolist())
-            y_pred.extend(pred.tolist())
-            
-   
-    plot_confusion_matrix(y_true=y_true,
-                          y_pred=y_pred,
-                          class_names=class_names,
-                          file_name=filename
-                          )
-    print(f"Confusion Matrix for the GNN model is saved in {filename}")
-
-    cls_report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
-
-    return cls_report
+#     return cls_report
