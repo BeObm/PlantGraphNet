@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 
 
-def train_model(model,accelerator, train_loader, val_loader, criterion, optimizer, args):
+def train_model(model,accelerator, train_loader, val_loader, criterion, optimizer,scheduler, args):
     # device = args.device
     # Lists to store loss and accuracy values for plotting
     train_loss_values = []
@@ -28,6 +28,7 @@ def train_model(model,accelerator, train_loader, val_loader, criterion, optimize
             accelerator.backward(loss)
             running_loss += accelerator.gather(loss).sum().item() * inputs.size(0)
             optimizer.step()
+            scheduler.step()
 
         model.eval()
 
@@ -42,6 +43,8 @@ def train_model(model,accelerator, train_loader, val_loader, criterion, optimize
             for inputs, labels in val_loader:
                 # inputs, labels = inputs.to(device), labels.to(device)
                 outputs = model(inputs)
+                print(f"Model Outputs: {outputs[:5]}")  # Print first 5 predictions
+                print(f"True Labels: {labels[:5]}")
                 _, predicted = torch.max(outputs, 1)
                 all_predict=accelerator.gather(predicted)
                 all_labels=accelerator.gather(labels)
@@ -52,6 +55,7 @@ def train_model(model,accelerator, train_loader, val_loader, criterion, optimize
         train_accuracy_values.append(train_accuracy)
 
        
+      
         print(f' <<{"="*8}  Epoch {epoch + 1}| Train Loss: {train_loss} | Train Accuracy: {train_accuracy}%   {"="*8}>> \n ')
 
 
@@ -97,12 +101,12 @@ def test_model(model, accelerator, test_loader, class_names,args):
 
 
 # Function to train the model
-def train_hybrid_model(model,accelerator, train_loader, val_loader,criterion, optimizer, args):
-   
+def train_hybrid_model(model,accelerator, train_loader, val_loader,criterion, optimizer,scheduler, args):
+    train_loss_values = []
+    train_accuracy_values = []
 
     for epoch in tqdm(range(args.num_epochs)):
-        train_loss_values = []
-        train_accuracy_values = []
+        
         # Training Phase
         model.train()
         running_loss = 0.0
@@ -110,12 +114,13 @@ def train_hybrid_model(model,accelerator, train_loader, val_loader,criterion, op
         total=0
         
         for images, features, labels in train_loader:
-         
+            
             optimizer.zero_grad()
             outputs = model(images, features)
             loss = criterion(outputs, labels)
             accelerator.backward(loss)
             optimizer.step()
+            scheduler.step()
 
             running_loss += accelerator.gather(loss).sum().item() * images.size(0)
 
@@ -140,14 +145,15 @@ def train_hybrid_model(model,accelerator, train_loader, val_loader,criterion, op
         with torch.no_grad():
             for images, features, labels in val_loader:
                 outputs = model(images, features)
-                
+                # print(f"Model Outputs: {outputs[:5]}")  # Print first 5 predictions
+                # print(f"True Labels: {labels[:5]}")
                 predicted = torch.argmax(outputs, dim=1)
                 all_predict=accelerator.gather(predicted)
                 all_labels=accelerator.gather(labels)
                 total += all_labels.size(0)
                 correct += (all_predict == all_labels).sum().item()
 
-        train_accuracy = 100 * correct / total
+        train_accuracy = correct / total
         train_accuracy_values.append(train_accuracy)
 
 

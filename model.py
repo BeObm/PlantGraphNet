@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from sklearn.metrics import classification_report
 from torch.cuda.amp import autocast, GradScaler
 from torchvision import models
+from torchvision.models import ResNet50_Weights
 
 
 class CNNModel(nn.Module):
@@ -188,25 +189,38 @@ class HybridImageClassifier(nn.Module):
     def __init__(self, num_classes, feature_size):
         super(HybridImageClassifier, self).__init__()
 
-        # CNN Backbone (Using a Pretrained ResNet18)
-        self.cnn = models.resnet18(pretrained=True)
-        self.cnn.fc = nn.Identity()  # Remove last FC layer to get feature embeddings
-        cnn_output_size = 512  # ResNet18 output feature size
+        self.cnn =models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
+        self.cnn.fc = nn.Identity() 
+        
+        # Freeze All Layers Initially
+        for param in self.cnn.parameters():
+            param.requires_grad = False  
+
+        # Unfreeze Only Layer4 (last few layers for fine-tuning)
+        for param in self.cnn.layer4.parameters():  
+            param.requires_grad = True  
+        cnn_output_size = 2048  
 
         # Additional Feature Processing
         self.feature_fc = nn.Sequential(
             nn.Linear(feature_size, 256),
             nn.ReLU(),
-            nn.Linear(256, 128),
-            nn.ReLU()
+            nn.BatchNorm1d(256),
+            nn.Dropout(0.2),
+            nn.Linear(256, 2048),  # Match ResNet output size
+            nn.ReLU(),
+            nn.BatchNorm1d(2048),
+            nn.Dropout(0.2)
         )
 
         # Fusion Layer (Combining CNN & Extracted Features)
         self.fusion_fc = nn.Sequential(
-            nn.Linear(cnn_output_size + 128, 128),
-            nn.ReLU(),
-            nn.Linear(128, num_classes)
-        )
+                nn.Linear(cnn_output_size, 128),
+                nn.ReLU(),
+                nn.BatchNorm1d(128),
+                nn.Dropout(0.2),
+                nn.Linear(128, num_classes)
+            )
 
     def forward(self, image, additional_features):
         # Process image through CNN
@@ -216,7 +230,7 @@ class HybridImageClassifier(nn.Module):
         extracted_features = self.feature_fc(additional_features)
 
         # Concatenate CNN features with additional extracted features
-        fused_features = torch.cat((image_features, extracted_features), dim=1)
+        fused_features= image_features*extracted_features
 
         # Pass through the final classifier
         output = self.fusion_fc(fused_features)
@@ -338,7 +352,7 @@ class GNNModel(torch.nn.Module):
 
         if self.use_image_feats:
             # Load a pretrained ResNet model for image feature extraction
-            resnet = models.resnet50(pretrained=True)
+            resnet = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
             self.image_feature_extractor = torch.nn.Sequential(*list(resnet.children())[:-1])  # Remove last FC layer
             self.img_feature_fc = torch.nn.Linear(2048, hidden_dim)  # Map ResNet features to hidden_dim
             

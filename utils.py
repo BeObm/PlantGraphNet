@@ -3,6 +3,7 @@ import torch
 import torchvision.transforms as transforms
 import numpy as np
 import os
+from collections import Counter
 from skimage.feature import graycomatrix, graycoprops, hog, local_binary_pattern
 from skimage.filters import sobel
 from sklearn.preprocessing import LabelEncoder
@@ -25,15 +26,29 @@ import concurrent.futures
 from torch.utils.data import  SubsetRandomSampler,WeightedRandomSampler
 from torch.utils.data import Dataset, DataLoader as image_DataLoader
 import random
+import torch.nn.functional as F
+import torch.nn as nn
 import cv2
 from tqdm import tqdm
 from datetime import datetime
+from skimage.filters import sobel
+import networkx as nx
+from skimage.segmentation import slic
+from skimage.feature import local_binary_pattern
+from skimage.future import graph
+from skimage.measure import regionprops
+from skimage.util import img_as_float
+from skimage.filters import sobel
+from skimage.feature import hog, ORB
+from torchvision.models import ResNet50_Weights
+from torchvision.models import resnet50
 
 import shutil
 
 config = ConfigParser()
 RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
 project_root_dir = os.path.abspath(os.getcwd())
+fixe_size=50
 
 def create_config_file(type_graph):
     configs_folder = osp.join(project_root_dir, f'results/GNN_Models/{type_graph}/{RunCode}')
@@ -318,13 +333,8 @@ def transform(type_data="train"):
         # Additional augmentations for training
         augmentations = [
             transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(45),
-            transforms.RandomResizedCrop(
-                size=(224, 224),
-                scale=(0.8, 1.0),
-                ratio=(0.9, 1.1),
-                interpolation=transforms.InterpolationMode.BILINEAR
-            )
+            transforms.RandomRotation(15),
+            transforms.RandomResizedCrop(224, scale=(0.8, 1.0))
         ]
         return transforms.Compose(augmentations + preprocessing)
 
@@ -499,6 +509,7 @@ def calculate_running_time(start_time, end_time):
 
 
 
+
 # Function to load image
 def load_image(image_path):
     """ Load image and convert to tensor """
@@ -506,46 +517,103 @@ def load_image(image_path):
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img, img_rgb
 
-# Extract features functions
-def extract_color_histogram(img, bins=(8, 8, 8)):
-    hist = cv2.calcHist([img], [0, 1, 2], None, bins, [0, 256, 0, 256, 0, 256])
-    hist = cv2.normalize(hist, hist).flatten()
-    return hist
-
-def extract_texture_features(gray_img):
-    glcm = graycomatrix(gray_img, distances=[1], angles=[0], levels=256, symmetric=True, normed=True)
-    contrast = graycoprops(glcm, 'contrast')[0, 0]
-    dissimilarity = graycoprops(glcm, 'dissimilarity')[0, 0]
-    homogeneity = graycoprops(glcm, 'homogeneity')[0, 0]
-    energy = graycoprops(glcm, 'energy')[0, 0]
-    correlation = graycoprops(glcm, 'correlation')[0, 0]
-    return np.array([contrast, dissimilarity, homogeneity, energy, correlation])
-
-def extract_edge_features(gray_img):
-    edges = cv2.Canny(gray_img, 100, 200)
-    edge_count = np.sum(edges) / 255
-    return np.array([edge_count])
-
-def extract_hog_features(gray_img):
-    features, _ = hog(gray_img, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True, multichannel=False)
+def fix_feature_length(features, fixed_size=fixe_size, pad_value=0):
+    
+    """ Truncates or pads the feature vector to a fixed size """
+    if len(features) > fixed_size:
+        return features[:fixed_size]  # Truncate
+    elif len(features) < fixed_size:
+        return np.pad(features, (0, fixed_size - len(features)), constant_values=pad_value)  # Pad
     return features
 
-def extract_lbp_features(gray_img, P=8, R=1):
-    lbp = local_binary_pattern(gray_img, P, R, method='uniform')
-    hist, _ = np.histogram(lbp.ravel(), bins=np.arange(0, P + 3), range=(0, P + 2))
-    hist = hist.astype(float) / hist.sum()  # Normalize histogram
-    return hist
 
-def extract_sobel_features(gray_img):
-    sobel_img = sobel(gray_img)
-    return np.array([np.mean(sobel_img), np.std(sobel_img)])
 
-# Custom PyTorch dataset
+def extract_superpixel_features(img_rgb, n_segments=100):
+    """ Extract mean color features from superpixel segmentation """
+    segments = slic(img_rgb, n_segments=n_segments, compactness=10)
+    mean_colors = []
+
+    for segment_label in np.unique(segments):
+        mask = segments == segment_label
+        mean_color = np.mean(img_rgb[mask], axis=0)
+        mean_colors.extend(mean_color)
+    features=np.array(mean_colors)
+      #print(f"Superpixel feature size is: {features.shape}")
+    return features
+
+def extract_keypoint_features(gray_img, max_features=100):
+    """ Extract ORB keypoints and enforce fixed size """
+    orb = ORB(n_keypoints=max_features)
+    orb.detect_and_extract(gray_img)
+    keypoints = orb.descriptors
+    
+    if keypoints is None or len(keypoints) == 0:
+        return np.zeros(max_features * 8)  # Default zero vector
+
+    keypoints = keypoints[:max_features]
+    features=keypoints.flatten()
+     # print(f"Keypoint feature size is: {features.shape}")
+    return features
+
+def extract_region_adjacency_features(gray_img):
+    """ Extract adjacency features using a region adjacency graph and fix length """
+    labels = slic(gray_img, n_segments=50, compactness=10)
+    edges = graph.rag_mean_color(gray_img, labels)
+
+    edge_weights = [data['weight'] for _, _, data in edges.edges(data=True)]
+    features=np.array(edge_weights)
+    
+      #print(f"Regions adjacency feature size is: {features.shape}")
+    return features
+
+
+def extract_grid_features(gray_img, grid_size=4):
+    """ Divide the image into a grid and extract mean and std intensity per region """
+    h, w = gray_img.shape
+    grid_h, grid_w = h // grid_size, w // grid_size
+    features = []
+    
+    for i in range(grid_size):
+        for j in range(grid_size):
+            grid_patch = gray_img[i * grid_h:(i + 1) * grid_h, j * grid_w:(j + 1) * grid_w]
+            features.append(np.mean(grid_patch))
+            features.append(np.std(grid_patch))
+            
+    features = np.array(features)   
+     # print(f"grid feature size is: {features.size}")
+    return features
+
+
+
+def extract_feature_map(img_tensor):
+    """ Extract CNN feature map using ResNet50 (pretrained) """
+    resnet = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
+    resnet = torch.nn.Sequential(*list(resnet.children())[:-2])  # Remove FC layer to keep feature maps
+
+    with torch.no_grad():
+        feature_map = resnet(img_tensor.unsqueeze(0))  # Pass through CNN
+    features=np.array(feature_map.flatten().cpu().numpy())
+    
+      #print(f"Feature map feature size is: {features.shape}")    
+    return features
+
+def extract_mesh3d_features(gray_img, max_points=500):
+    """ Convert image to a pseudo 3D mesh representation using edge detection """
+    edges = sobel(gray_img)  # Compute edges (acts like height variations)
+    mesh_points = np.column_stack(np.where(edges > 0))  # Get edge points
+    features=np.array(mesh_points.flatten()[:max_points])
+      #print(f"Mesh3d feature size is: {features.shape}")
+    return features
+
+
+
 class ImageFeatureDataset(Dataset):
-    def __init__(self, image_paths, labels, transform=None):
+    def __init__(self, image_paths, labels,feature_list, transform=None, fixed_size=0):
         self.image_paths = image_paths
         self.labels = labels
         self.transform = transform
+        self.feature_list=feature_list
+        self.fixed_size=fixed_size
 
     def __len__(self):
         return len(self.image_paths)
@@ -553,19 +621,50 @@ class ImageFeatureDataset(Dataset):
     def __getitem__(self, idx):
         image_path = self.image_paths[idx]
         label = self.labels[idx]
+        features_list=[]
 
         # Load image
         img, img_rgb = load_image(image_path)
         gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        # Extract features
-        color_hist = extract_color_histogram(img)
-        texture_features = extract_texture_features(gray_img)
-        edge_features = extract_edge_features(gray_img)
-        hog_features = extract_hog_features(gray_img)
-        lbp_features = extract_lbp_features(gray_img)
-        sobel_features = extract_sobel_features(gray_img)
+        # Extract fixed-length features
+        if "grid_features" in self.feature_list:
+         grid_features = extract_grid_features(gray_img)
+         if self.fixed_size!=0:
+             grid_features=fix_feature_length(grid_features,self.fixed_size)
+         features_list.append(grid_features)
+         
+        if "superpixel_features" in self.feature_list:
+            superpixel_features = extract_superpixel_features(img_rgb)
+            if self.fixed_size!=0:
+              superpixel_features=fix_feature_length(superpixel_features,self.fixed_size)
+            features_list.append(superpixel_features)
+            
+        if "keypoints_features" in self.feature_list:
+             keypoint_features = extract_keypoint_features(gray_img)
+             if self.fixed_size!=0:
+                  keypoint_features=fix_feature_length(keypoint_features,self.fixed_size)
+             features_list.append(keypoint_features)
+        
+        if "region_adjacency_features" in self.feature_list:
+            region_adj_features = extract_region_adjacency_features(gray_img)
+            if self.fixed_size!=0:
+             region_adj_features=fix_feature_length(region_adj_features,self.fixed_size)
+            features_list.append(region_adj_features)
+            
+        if "feature_map_features" in self.feature_list:
+            feature_map = extract_feature_map(transforms.ToTensor()(img_rgb))
+            if self.fixed_size!=0:
+             feature_map=fix_feature_length(feature_map,self.fixed_size)
+            features_list.append(feature_map)
+            
+        if "meash3d_features" in self.feature_list:
+            mesh3d_features = extract_mesh3d_features(gray_img)
+            if self.fixed_size!=0:
+             mesh3d_features=fix_feature_length(mesh3d_features,self.fixed_size)
+            features_list.append(mesh3d_features)
 
+       
         # Convert image to tensor
         if self.transform:
             img_tensor = self.transform(img_rgb)
@@ -575,14 +674,16 @@ class ImageFeatureDataset(Dataset):
                                             transforms.ToTensor()])
             img_tensor = transform(img_rgb)
 
-        # Concatenate all extracted features
-        additional_features = np.hstack((color_hist, texture_features, edge_features, hog_features, lbp_features, sobel_features))
-        additional_features_tensor = torch.tensor(additional_features, dtype=torch.float)
+        additional_features = np.hstack(tuple(features_list))
 
+        additional_features_tensor = torch.tensor(additional_features, dtype=torch.float)
         return img_tensor, additional_features_tensor, torch.tensor(label, dtype=torch.long)
 
+
+
+
 # Function to create dataset from a structured folder
-def create_dataloader(data_dir, batch_size=16):
+def create_dataloader(data_dir, feature_list,fixed_size=0, batch_size=16,sufle=False):
     image_paths = []
     labels = []
     class_names = sorted(os.listdir(data_dir))  # Get folder names (classes)
@@ -607,8 +708,78 @@ def create_dataloader(data_dir, batch_size=16):
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
+    dataset = ImageFeatureDataset(image_paths = image_paths,
+                                  labels = labels,
+                                  feature_list = feature_list,
+                                  fixed_size = fixed_size,
+                                  transform=transform)
+    
+    dataloader = image_DataLoader(dataset, batch_size=batch_size, shuffle=sufle)
 
-    dataset = ImageFeatureDataset(image_paths, labels, transform=transform)
-    dataloader = image_DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    return dataloader, label_encoder,class_names
 
-    return dataloader, label_encoder
+
+
+
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=None, gamma=2.0, reduction='mean'):
+        """
+        Focal Loss for dealing with class imbalance.
+        :param alpha: Weight for each class (tensor of shape [num_classes])
+        :param gamma: Focusing parameter (higher = more focus on hard examples)
+        :param reduction: 'mean', 'sum', or 'none'
+        """
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, logits, targets):
+        """
+        logits: Model outputs before softmax (batch_size, num_classes)
+        targets: Ground truth labels (batch_size)
+        """
+        ce_loss = F.cross_entropy(logits, targets, reduction='none')
+        p_t = torch.exp(-ce_loss)  # Probabilities for correct class
+
+        focal_loss = (1 - p_t) ** self.gamma * ce_loss
+
+        # Apply class weights if provided
+        if self.alpha is not None:
+            alpha_factor = self.alpha[targets]  # Select weight for each target class
+            focal_loss = alpha_factor * focal_loss
+
+        if self.reduction == 'mean':
+            return focal_loss.mean()
+        elif self.reduction == 'sum':
+            return focal_loss.sum()
+        return focal_loss
+
+def compute_class_weights(dataloader, num_classes, device="cpu"):
+    """
+    Computes class weights based on label frequencies from a DataLoader.
+
+    Args:
+        dataloader (DataLoader): PyTorch DataLoader containing dataset batches.
+        num_classes (int): Total number of classes in the dataset.
+        device (str): Device where class weights should be stored (e.g., "cuda" or "cpu").
+
+    Returns:
+        torch.Tensor: Class weights tensor for Weighted Cross-Entropy Loss.
+    """
+    class_counts = Counter()
+
+    # Iterate over the DataLoader to collect label frequencies
+    for _, _, labels in dataloader:  # Assuming (images, features, labels) are returned
+        class_counts.update(labels.tolist())  # Convert tensor to list and update counter
+
+    # Convert counts to a tensor
+    num_samples_per_class = torch.tensor(
+        [class_counts[i] for i in range(num_classes)], dtype=torch.float32
+    )
+
+    # Compute weights: Inverse frequency (higher weight for underrepresented classes)
+    class_weights = 1.0 / num_samples_per_class
+    class_weights = class_weights / class_weights.sum()  # Normalize weights
+
+    return class_weights.to(device)  # Move weights to the specified device

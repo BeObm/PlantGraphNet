@@ -24,7 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("--hidden_dim", default=256, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=200, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=4*16, help="batch_size")
-    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
+    parser.add_argument("--lr", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.0001, help="wd")
     parser.add_argument("--Conv1", default=LEConv, help="Conv1")
     parser.add_argument("--Conv2", default=LEConv, help="Conv2")
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total number of trainable parameters in the model: {pytorch_total_params}")
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate,weight_decay=args.wd)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr,weight_decay=args.wd)
     pbar = tqdm(num_epochs)
     pbar.set_description("training model")
     best_loss=99999
@@ -105,7 +105,7 @@ if __name__ == "__main__":
                                        losses=train_losses,
                                        folder_name=config['param']['result_folder'])
 
-    cls_report = test_function(accelerator=accelerator,
+    cls_report = test_hybrid_model(accelerator=accelerator,
                                model=model,
                                test_loader=test_loader,
                                class_names=class_names)
@@ -115,3 +115,5 @@ if __name__ == "__main__":
     
     print(f"Model Classification report for GNN model \n ")
     print(cr)
+    
+    
