@@ -2,13 +2,15 @@ from torch.nn.functional import relu, log_softmax
 from torch_geometric.nn import global_add_pool
 from utils import *
 import torch
+import torch.nn.init as init
 import torch.nn as nn
+from copy import deepcopy
 import torch.nn.functional as F
 from sklearn.metrics import classification_report
 from torch.cuda.amp import autocast, GradScaler
 from torchvision import models
 from torchvision.models import ResNet50_Weights
-
+from tqdm import tqdm
 
 class CNNModel(nn.Module):
     def __init__(self, num_classes=10,feature_siz=3):  # num_classes can be adjusted for your dataset
@@ -194,7 +196,7 @@ class HybridImageClassifier(nn.Module):
         
         # Freeze All Layers Initially
         for param in self.cnn.parameters():
-            param.requires_grad = False  
+            param.requires_grad = True  
 
         # Unfreeze Only Layer4 (last few layers for fine-tuning)
         for param in self.cnn.layer4.parameters():  
@@ -212,7 +214,7 @@ class HybridImageClassifier(nn.Module):
             nn.BatchNorm1d(2048),
             nn.Dropout(0.2)
         )
-
+        self._initialize_weights()
         # Fusion Layer (Combining CNN & Extracted Features)
         self.fusion_fc = nn.Sequential(
                 nn.Linear(cnn_output_size, 128),
@@ -221,6 +223,16 @@ class HybridImageClassifier(nn.Module):
                 nn.Dropout(0.2),
                 nn.Linear(128, num_classes)
             )
+        
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    init.zeros_(m.bias)
+            elif isinstance(m, nn.BatchNorm1d):
+                init.ones_(m.weight)
+                init.zeros_(m.bias)    
 
     def forward(self, image, additional_features):
         # Process image through CNN
@@ -238,96 +250,6 @@ class HybridImageClassifier(nn.Module):
         return output
 
 
-class GNNModel0(torch.nn.Module):
-    # Original image input feature count
-
-    def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2,image_feature=150,use_image_feats=False):
-        super(GNNModel, self).__init__()
-
-        # Graph feature extraction (upgraded to more advanced GNN layers like GAT or GIN)
-
-        self.graph_conv1 = Conv1(num_node_features[0], hidden_dim )
-        self.batch_norm1= torch.nn.BatchNorm1d(hidden_dim)
-        self.act=torch.nn.ReLU()
-        self.use_image_feats=use_image_feats
-            
-        #
-        self.graph_conv2 = Conv2(hidden_dim, hidden_dim)
-        self.batch_norm2= torch.nn.BatchNorm1d(hidden_dim)
-
-        self.graph_conv3 = Conv2(hidden_dim , hidden_dim)
-        self.batch_norm2= torch.nn.BatchNorm1d(hidden_dim)
-      
-        # Linear layers for combining graph features and image features
-        self.node_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)  # Node feature transformation
-        if self.use_image_feats==True:
-              # Process image features with CNN (multiple convolution layers)
-            self.img_cnn = torch.nn.Sequential(
-            torch.nn.Linear(image_feature, 1024),
-            torch.nn.ReLU(),
-            torch.nn.BatchNorm1d(1024),
-            torch.nn.Linear(1024, 512),
-            torch.nn.ReLU(),
-            torch.nn.BatchNorm1d(512),
-            torch.nn.Linear(512, 256),
-            torch.nn.ReLU(),
-            torch.nn.BatchNorm1d(256),
-            torch.nn.Linear(256, 128),  # Reduce to 128-dimensional feature vector
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, hidden_dim),  # Map final features to `hidden_dim`
-            )
-            self.img_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)  # Map image features to hidden dim
-            self.img_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)  # Map image features to hidden dim
-
-
-            self.fc = torch.nn.Linear(hidden_dim * 2, num_classes)  # Classifier
-        else:
-            self.fc=torch.nn.Linear(hidden_dim,num_classes)
-
-        # Dropout to prevent overfitting
-        self.dropout = torch.nn.Dropout(p=0.5)
-
-    def forward(self, data):
-        # Graph feature processing
-        node_features = data.x
-        edge_index = data.edge_index.view(2, -1)
-        edge_attr = data.edge_attr
-        batch = data.batch
-            
-        # print(f"node_features: {node_features.shape} edge_index: {edge_index.shape} batch: {batch.shape} image_features: {image_features.shape}")
-        node_features = self.graph_conv1(node_features, edge_index,edge_attr)
-        node_features = self.batch_norm1(node_features)
-        node_features = self.act(node_features)
-
-        node_features = self.graph_conv2(node_features, edge_index,edge_attr)
-        node_features = self.batch_norm2(node_features)
-        node_features = self.act(node_features)
-
-        node_features = self.graph_conv3(node_features, edge_index,edge_attr)
-        node_features = self.batch_norm2(node_features)
-        node_features = self.act(node_features)
-        
-        node_features = global_add_pool(node_features, batch)  # Global pooling for graph features
-        node_features = self.node_feature_fc(node_features)
-
-        # Image feature processing
-        if self.use_image_feats:
-            image_features=data.image_features.view(data.image_features.size(0), -1)
-            img_features = image_features  # Assuming it's a 4D tensor for CNN ([batch, C, H, W])
-            img_features = self.img_cnn(img_features)  # Flatten after pooling
-            img_features = self.img_feature_fc(img_features)
-            combined_features = torch.cat([node_features, img_features], dim=1)  # Concatenate graph & image features
-            combined_features = self.dropout(combined_features)  # Apply dropout
-            output = self.fc(combined_features)  # Classify
-        else:
-            output = self.fc(node_features)  # Classify
-
-
-        # Effective fusion of graph and image features
-
-
-
-        return output
 
 
 
@@ -335,7 +257,7 @@ class GNNModel0(torch.nn.Module):
 class GNNModel(torch.nn.Module):
     def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2,image_feature=150, use_image_feats=False):
         super(GNNModel, self).__init__()
-
+        set_seed()
         # Graph feature extraction layers
         self.graph_conv1 = Conv1(num_node_features[0], hidden_dim)
         self.batch_norm1 = torch.nn.BatchNorm1d(hidden_dim)
@@ -349,16 +271,26 @@ class GNNModel(torch.nn.Module):
         self.batch_norm3 = torch.nn.BatchNorm1d(hidden_dim)
         
         self.node_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)  # Node feature transformation
-
+        
+        init.xavier_uniform_(self.node_feature_fc.weight)
+        init.zeros_(self.node_feature_fc.bias)
         if self.use_image_feats:
             # Load a pretrained ResNet model for image feature extraction
             resnet = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
             self.image_feature_extractor = torch.nn.Sequential(*list(resnet.children())[:-1])  # Remove last FC layer
             self.img_feature_fc = torch.nn.Linear(2048, hidden_dim)  # Map ResNet features to hidden_dim
             
+            # Initialize weights for `img_feature_fc` layer
+            init.xavier_uniform_(self.img_feature_fc.weight)
+            init.zeros_(self.img_feature_fc.bias)
             self.fc = torch.nn.Linear(hidden_dim * 2, num_classes)  # Classifier combining graph & image features
+            
+            init.xavier_uniform_(self.fc.weight)
+            init.zeros_(self.fc.bias)
         else:
             self.fc = torch.nn.Linear(hidden_dim, num_classes)
+            init.xavier_uniform_(self.fc.weight)
+            init.zeros_(self.fc.bias)
 
         self.dropout = torch.nn.Dropout(p=0.2)
 
@@ -403,20 +335,35 @@ class GNNModel(torch.nn.Module):
 
 
 
+def train_function(epochs, model, train_dataloader,val_dataloader,type_graph, criterion, optimizer,scheduler,accelerator):
+    pbar = tqdm(epochs)
+    pbar.set_description("training model")
+    train_losses = []
+    train_accuracies = []
+    best_loss=99999
 
-
-def train_function(model, dataloader, criterion, optimizer,accelerator):
     model.train()
-    loss_all = 0
-    for batch in dataloader:
-        optimizer.zero_grad()
-        output = model(batch)
-        loss = criterion(output, batch.y)
-        accelerator.backward(loss)
-        optimizer.step()
-        loss_all += batch.num_graphs * loss.item()
-       
-    return loss_all / len(dataloader) 
+    for epoch in range(epochs):
+        running_loss = 0.0
+        for batch in train_dataloader:
+            optimizer.zero_grad()
+            output = model(batch)
+            loss = criterion(output, batch.y)
+            accelerator.backward(loss)
+            optimizer.step()
+            # scheduler.step()
+            running_loss += accelerator.gather_for_metrics(loss).sum().item() * batch.num_graphs
+        
+        train_loss= running_loss / len(train_dataloader)
+        train_losses.append(train_loss)
+        if train_loss <= best_loss:
+            best_loss = train_loss
+            best_model=deepcopy(model)
+        if epoch % 10 == 0:
+            torch.save(best_model.state_dict(), f"results/GNN_Models/{type_graph}_best_model.pth")
+        pbar.write(f'\n Epoch [{epoch}/{epochs}]: Loss: {round(train_loss, 5)} | Current best loss: {round(best_loss, 5)}')
+        pbar.update(1)
+    return train_losses,best_model
 
 
 @torch.no_grad()
@@ -433,8 +380,8 @@ def test_function(accelerator, model, test_loader, class_names):
         logits = model(data)
         pred= torch.argmax(logits,dim=1)
         
-        all_targets =accelerator.gather(targets)
-        all_pred = accelerator.gather(pred)
+        all_targets =accelerator.gather_for_metrics(targets)
+        all_pred = accelerator.gather_for_metrics(pred)
         
         true_labels.extend(all_targets.detach().cpu().numpy())
         pred_labels.extend(all_pred.detach().cpu().numpy())

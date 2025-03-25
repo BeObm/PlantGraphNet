@@ -25,9 +25,9 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_size", type=int, default=0, help="number  of images to use for training per class, 0 means all")
     parser.add_argument("--use_class_weights", default=True, type=bool, help="use class weights", choices=[True, False])
     parser.add_argument("--hidden_dim", default=128, type=int, help="hidden_dim")
-    parser.add_argument("--add_fix_feats", default=2500, type=int, help="addiional fixed feature size per view")
+    parser.add_argument("--add_fix_feats", default=240, type=int, help="addiional fixed feature size per view")
     parser.add_argument("--num_epochs", type=int, default=150, help="num_epochs")
-    parser.add_argument("--batch_size", type=int, default=32*4, help="batch_size")
+    parser.add_argument("--batch_size", type=int, default=16*4, help="batch_size")
     parser.add_argument("--lr", type=float, default=0.0005, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.00001, help="wd")
     parser.add_argument("--criterion", default="CrossEntropy", help="criterion")
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     val_data = "dataset/images/val"
     test_data = "dataset/images/test"
     # feature_list=["grid_features","keypoint_features","feature_map_features","superpixel_features","region_adjacency_features","mesh3d_features"]
-    feature_list=["keypoint_features","region_adjacency_features"]
+    feature_list=["superpixel_features","region_adjacency_features"]
 
     if args.type_model != "hybrid":
         num_classes, train_loader,val_loader, test_loader, class_names, sample_weights = load_data(dataset_dir=[train_data,val_data,test_data], batch_size=args.batch_size, num_samples_per_class=args.dataset_size, use_class_weights=args.use_class_weights)

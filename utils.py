@@ -50,7 +50,9 @@ RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
 project_root_dir = os.path.abspath(os.getcwd())
 fixe_size=50
 
-def create_config_file(type_graph):
+
+def create_config_file(args):
+    type_graph=args.type_graph
     configs_folder = osp.join(project_root_dir, f'results/GNN_Models/{type_graph}/{RunCode}')
     os.makedirs(configs_folder, exist_ok=True)
     config_filename = f"{configs_folder}/ConfigFile_{RunCode}.ini"
@@ -63,7 +65,16 @@ def create_config_file(type_graph):
         "train_image_dataset_root": f"{project_root_dir}/dataset/images/train",
         "val_image_dataset_root": f"{project_root_dir}/dataset/images/val",
         "test_image_dataset_root": f"{project_root_dir}/dataset/images/test",
-
+        "use_image_feats": args.use_image_feats,
+        "hidden_dim": args.hidden_dim,    
+        "num_epochs": args.num_epochs,
+        "batch_size": args.batch_size,
+        "lr": args.lr,
+        "wd": args.wd,
+        "Conv1": args.Conv1,
+        "Conv2": args.Conv2,
+        "nb_gpus": args.nb_gpus,
+        "connectivity": args.connectivity,
         "graph_dataset_folder": f"{graph_filename}",
         "result_folder": f"{configs_folder}",
         "sigma":1.0,
@@ -432,10 +443,11 @@ def save_multiple_time_to_excel_with_date(cr, args):
         cr.to_excel(output_file_path)
 
 def graphdata_loader(graph_list,batch_size,type_data="train",ddp=True):
-    set_seed()
+   
   
     sampler=ImbalancedSampler(graph_list)
     if type_data == "train":
+        set_seed()
         dataset_loader = DataLoader(graph_list, batch_size=batch_size, sampler=sampler)
     else:
         dataset_loader = DataLoader(graph_list, batch_size=batch_size, shuffle=False, num_workers=os.cpu_count())
@@ -455,7 +467,7 @@ def Load_graphdata(dataset_source_path,type_graph="multi_graph"):
     file_paths = [os.path.join(dataset_source_path, file_name) for file_name in os.listdir(dataset_source_path)]
 
     # Use ThreadPoolExecutor to load graphs in parallel
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
         # Load all graphs concurrently
         results = executor.map(load_single_graph, file_paths)
 
@@ -481,7 +493,10 @@ def Load_graphdata(dataset_source_path,type_graph="multi_graph"):
         feat_size_list.append(data.x5.shape[1])
     else:
         feat_size_list.append(data.x.shape[1])
-    
+    with open(f"graph_list1.txt", "w") as f:
+         for idx,lgraph  in enumerate(graph_list):
+             f.write(f"idx -------> {lgraph}\n")
+            
     return graph_list, feat_size_list, labels
 
 
