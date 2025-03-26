@@ -75,11 +75,11 @@ if __name__ == "__main__":
     
     pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total number of trainable parameters in the model: {pytorch_total_params}")
+    add_config("param", "Model parameters", pytorch_total_params )
     
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr,weight_decay=args.wd)
    
-    
     train_accuracies = []
     device = accelerator.device
     
@@ -100,6 +100,9 @@ if __name__ == "__main__":
                                           accelerator=accelerator)
         
     print(f"Time taken to train the model: { datetime.now() - start_time}")
+    
+    add_config("param", "Training time", datetime.now() - start_time)
+    add_config("param", "Best Loss", min(train_losses))
 
     plot_and_save_training_performance(num_epochs=num_epochs,
                                        losses=train_losses,

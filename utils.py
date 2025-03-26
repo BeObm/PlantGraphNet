@@ -86,7 +86,15 @@ def create_config_file(args):
     with open(config_filename, "w") as file:
         config.write(file)
 
-
+def add_config(section_, key_, value_, ):
+    if section_ not in list(config.sections()):
+        config.add_section(section_)
+    config[section_][key_] = str(value_)
+    filename = config["param"]["config_filename"]
+    with open(filename, "w") as conf:
+        config.write(conf)
+        
+        
 def plot_image_with_nodes(img_path, data, output_folder):
     # Create the output folder if it doesn't exist
     if not os.path.exists(output_folder):
