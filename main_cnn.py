@@ -12,7 +12,7 @@ from Baselines.baseline_models import baseline_model
 from train_test_model import train_model, test_model,train_hybrid_model,test_hybrid_model
 from datetime import datetime
 from utils import *
-
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 if __name__ == "__main__":
     set_seed()
@@ -20,8 +20,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--dataset_name", help="dataset name", default="lidl", choices=["lidl", "other"])
-    parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="hybrid", choices=["baseline", "Our_CNN_Model","hybrid"])
-    parser.add_argument("--model_name", help="Model name", default="ResNet50", choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet"])
+    parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="baseline", choices=["baseline", "Our_CNN_Model","hybrid"])
+    parser.add_argument("--model_name", help="Model name", default="ResNet50", choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet","Unet", "Yolo"])
     parser.add_argument("--dataset_size", type=int, default=0, help="number  of images to use for training per class, 0 means all")
     parser.add_argument("--use_class_weights", default=True, type=bool, help="use class weights", choices=[True, False])
     parser.add_argument("--hidden_dim", default=128, type=int, help="hidden_dim")
