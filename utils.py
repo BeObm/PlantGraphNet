@@ -35,7 +35,7 @@ from skimage.filters import sobel
 import networkx as nx
 from skimage.segmentation import slic
 from skimage.feature import local_binary_pattern
-from skimage.future import graph
+#from skimage.future import graph
 from skimage.measure import regionprops
 from skimage.util import img_as_float
 from skimage.filters import sobel
