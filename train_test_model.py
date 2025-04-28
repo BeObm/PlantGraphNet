@@ -28,12 +28,14 @@ def train_model(model,accelerator, train_loader, val_loader, criterion, optimize
             accelerator.backward(loss)
             running_loss += accelerator.gather(loss).sum().item() * inputs.size(0)
             optimizer.step()
-            scheduler.step()
+            #scheduler.step()
 
         model.eval()
 
         # Compute and store training loss and accuracy
         train_loss = running_loss / len(train_loader.dataset)
+        if np.isnan(train_loss):
+          train_loss = 999
         train_loss_values.append(train_loss)
         total = 0
         correct = 0

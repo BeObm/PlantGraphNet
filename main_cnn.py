@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--dataset_name", help="dataset name", default="lidl", choices=["lidl", "other"])
     parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="baseline", choices=["baseline", "Our_CNN_Model","hybrid"])
-    parser.add_argument("--model_name", help="Model name", default="ResNet50", choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet","Unet", "Yolo"])
+    parser.add_argument("--model_name", help="Model name", default="VGG19", choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet","Unet", "Yolo"])
     parser.add_argument("--dataset_size", type=int, default=0, help="number  of images to use for training per class, 0 means all")
     parser.add_argument("--use_class_weights", default=True, type=bool, help="use class weights", choices=[True, False])
     parser.add_argument("--hidden_dim", default=128, type=int, help="hidden_dim")
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     test_data = "dataset/images/test"
     # feature_list=["grid_features","keypoint_features","feature_map_features","superpixel_features","region_adjacency_features","mesh3d_features"]
     feature_list=["superpixel_features","region_adjacency_features"]
-
+    print(f"{'*'*10} Using {args.type_model} model with {args.model_name} architecture  {'*'*10} \n")
     if args.type_model != "hybrid":
         num_classes, train_loader,val_loader, test_loader, class_names, class_weights = load_data(dataset_dir=[train_data,val_data,test_data], batch_size=args.batch_size, num_samples_per_class=args.dataset_size, use_class_weights=args.use_class_weights)
     elif args.type_model == "hybrid":
@@ -120,10 +120,10 @@ if __name__ == "__main__":
     
     cl_report = test_hybrid_model(model, accelerator,test_loader, class_names,args=args)
     cr = pd.DataFrame(cl_report).transpose()
-    cr.to_excel(f"{args.result_dir}/result_for_{args.model_name}_{times}_seconds.xlsx")
+    cr.to_excel(f"{args.result_dir}/result_for_{args.model_name}_param_{pytorch_total_params}_{times}_seconds.xlsx")
 
     print(f"Model Classification report for {args.model_name} \n ")
     print(cr)
     
     
-    print(f"Time taken to train the model: {times/3600} {'hours' if times>1 else 'hour'}")
+    print(f"Time taken to train the {args.model_name} model with {pytorch_total_params} parmaters: {times/3600} {'hours' if times>1 else 'hour'}")
