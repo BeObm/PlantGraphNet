@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torchvision.models as models
-from ultralytics import YOLO
+#from ultralytics import YOLO
 
 
 def baseline_model(model_name, num_classes):

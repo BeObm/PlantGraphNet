@@ -43,8 +43,8 @@ def train_model(model,accelerator, train_loader, val_loader, criterion, optimize
             for inputs, labels in val_loader:
                 # inputs, labels = inputs.to(device), labels.to(device)
                 outputs = model(inputs)
-                print(f"Model Outputs: {outputs[:5]}")  # Print first 5 predictions
-                print(f"True Labels: {labels[:5]}")
+                #print(f"Model Outputs: {outputs[:5]}")  # Print first 5 predictions
+                #print(f"True Labels: {labels[:5]}")
                 _, predicted = torch.max(outputs, 1)
                 all_predict=accelerator.gather(predicted)
                 all_labels=accelerator.gather(labels)

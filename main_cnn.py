@@ -41,7 +41,7 @@ if __name__ == "__main__":
     feature_list=["superpixel_features","region_adjacency_features"]
 
     if args.type_model != "hybrid":
-        num_classes, train_loader,val_loader, test_loader, class_names, sample_weights = load_data(dataset_dir=[train_data,val_data,test_data], batch_size=args.batch_size, num_samples_per_class=args.dataset_size, use_class_weights=args.use_class_weights)
+        num_classes, train_loader,val_loader, test_loader, class_names, class_weights = load_data(dataset_dir=[train_data,val_data,test_data], batch_size=args.batch_size, num_samples_per_class=args.dataset_size, use_class_weights=args.use_class_weights)
     elif args.type_model == "hybrid":
         train_loader, label_encoder,class_names = create_dataloader(data_dir=train_data,
                                                         feature_list= feature_list,
@@ -97,7 +97,8 @@ if __name__ == "__main__":
             print(f"Loaded saved model from {saved_model_path}")
         except:
             pass
-    criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='mean')
+    criterion = nn.CrossEntropyLoss(reduction='mean')
+    #criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='mean')
     # criterion= FocalLoss(alpha=class_weights,gamma=2.0, reduction="mean")
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
@@ -115,12 +116,14 @@ if __name__ == "__main__":
         
     # torch.save(model.state_dict(), saved_model_path)
     end_time = datetime.now()
+    times=round((end_time - start_time).total_seconds(),2)
+    
     cl_report = test_hybrid_model(model, accelerator,test_loader, class_names,args=args)
-
     cr = pd.DataFrame(cl_report).transpose()
-    cr.to_excel(f"{args.result_dir}/result_for_{args.model_name}.xlsx")
+    cr.to_excel(f"{args.result_dir}/result_for_{args.model_name}_{times}_seconds.xlsx")
 
     print(f"Model Classification report for {args.model_name} \n ")
     print(cr)
-    times=(end_time - start_time).total_seconds() / 3600
-    print(f"Time taken to train the model: {times} {'hours' if times>1 else 'hour'}")
+    
+    
+    print(f"Time taken to train the model: {times/3600} {'hours' if times>1 else 'hour'}")
