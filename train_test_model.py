@@ -92,14 +92,13 @@ def test_model(model, accelerator, test_loader, class_names,args):
     plot_confusion_matrix(y_true=y_true,
                           y_pred=y_pred,
                           class_names=class_names,
-                          file_name= f"{args.result_dir}/confusion_matrix.pdf"
+                          file_name= f"{args.result_dir}/{args.model_name}_param_({args.gpu_idx})GPU_seconds_confusion_matrix.pdf"
                           )
     print(f"Confusion Matrix for {args.model_name} is saved in {args.model_name}_confusion_matrix.pdf")
 
     cls_report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
 
     return cls_report
-
 
 
 # Function to train the model

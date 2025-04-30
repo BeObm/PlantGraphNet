@@ -53,7 +53,7 @@ fixe_size=50
 
 def create_config_file(args):
     type_graph=args.type_graph
-    configs_folder = osp.join(project_root_dir, f'results/GNN_Models/{type_graph}_{args.nb_gpus}/{RunCode}')
+    configs_folder = osp.join(project_root_dir, f'results/GNN_Models/{type_graph}_{args.nb_gpus}_GPUs/{RunCode}')
     os.makedirs(configs_folder, exist_ok=True)
     config_filename = f"{configs_folder}/ConfigFile_{RunCode}.ini"
     graph_filename = f"{project_root_dir}/dataset/graphs"

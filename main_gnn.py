@@ -24,7 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
     parser.add_argument("--hidden_dim", default=256, type=int, help="hidden_dim")
     parser.add_argument("--num_epochs", type=int, default=200, help="num_epochs")
-    parser.add_argument("--batch_size", type=int, default=4*32, help="batch_size")
+    parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
     parser.add_argument("--lr", type=float, default=0.001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.0001, help="wd")
     parser.add_argument("--Conv1", default=LEConv, help="Conv1")
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     start_time=datetime.now()
-
+    args.batch_size = args.batch_size*args.nb_gpus
     create_config_file(args)
    
     print(f" {'*'*10}  Loading training graph datasets...")

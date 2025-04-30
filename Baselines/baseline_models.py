@@ -114,6 +114,7 @@ def VGG16_Model(num_classes):
     return model
 
 
+
 def VGG19_Model(num_classes):
     model = models.vgg19(pretrained=True)
     for param in model.features.parameters():

@@ -28,10 +28,10 @@ if __name__ == "__main__":
     parser.add_argument("--add_fix_feats", default=240, type=int, help="addiional fixed feature size per view")
     parser.add_argument("--num_epochs", type=int, default=150, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=16*4, help="batch_size")
-    parser.add_argument("--lr", type=float, default=0.0005, help="learning_rate")
-    parser.add_argument("--wd", type=float, default=0.00001, help="wd")
+    parser.add_argument("--lr", type=float, default=0.001, help="learning_rate")
+    parser.add_argument("--wd", type=float, default=0.0005, help="wd")
     parser.add_argument("--criterion", default="CrossEntropy", help="criterion")
-    parser.add_argument("--gpu_idx", default=1, help="GPU  num")
+    parser.add_argument("--gpu_idx", default=4, help="GPU  num")
 
     args = parser.parse_args()                    
     train_data= "dataset/images/train"
@@ -117,13 +117,16 @@ if __name__ == "__main__":
     # torch.save(model.state_dict(), saved_model_path)
     end_time = datetime.now()
     times=round((end_time - start_time).total_seconds(),2)
-    
-    cl_report = test_hybrid_model(model, accelerator,test_loader, class_names,args=args)
+     
+    if args.type_model=="hybrid":
+        cl_report = test_hybrid_model(model, accelerator,test_loader, class_names,args=args)
+    else:
+        cl_report = test_model(model, accelerator,test_loader, class_names,args=args)
+   
     cr = pd.DataFrame(cl_report).transpose()
-    cr.to_excel(f"{args.result_dir}/result_for_{args.model_name}_param_{pytorch_total_params}_{times}_seconds.xlsx")
+    cr.to_excel(f"{args.result_dir}/result_for_{args.model_name}_param_{pytorch_total_params}_({args.gpu_idx})GPU_{times}_seconds.xlsx")
 
     print(f"Model Classification report for {args.model_name} \n ")
     print(cr)
-    
-    
-    print(f"Time taken to train the {args.model_name} model with {pytorch_total_params} parmaters: {times/3600} {'hours' if times>1 else 'hour'}")
+        
+    print(f"Time taken to train the {args.model_name} model with {pytorch_total_params} parmaters using {args.gpu_idx} GPU: {times/3600} {'hours' if times>1 else 'hour'}")
