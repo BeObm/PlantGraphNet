@@ -29,12 +29,12 @@ if __name__ == "__main__":
     parser.add_argument("--wd", type=float, default=0.0001, help="wd")
     parser.add_argument("--Conv1", default=LEConv, help="Conv1")
     parser.add_argument("--Conv2", default=LEConv, help="Conv2")
-    parser.add_argument("--nb_gpus", default=4, help="number of GPUs")
+    parser.add_argument("--nb_gpus", default=4, type=int, help="number of GPUs")
     parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
     
     args = parser.parse_args()
     start_time=datetime.now()
-    args.batch_size = args.batch_size*args.nb_gpus
+    args.batch_size = int(args.batch_size)*int(args.nb_gpus)
     create_config_file(args)
    
     print(f" {'*'*10}  Loading training graph datasets...")
