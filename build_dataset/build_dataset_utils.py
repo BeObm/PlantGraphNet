@@ -14,8 +14,9 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import cv2
 import networkx as nx
+import skimage
 from skimage.segmentation import slic
-from skimage.future.graph import rag_mean_color
+from skimage.graph import rag_mean_color
 from scipy.spatial import Delaunay, Voronoi
 from sklearn.neighbors import NearestNeighbors
 from torch_geometric.data import Data
@@ -23,7 +24,7 @@ from torch_geometric.utils import grid
 from math import atan2, sqrt
 
 from skimage.segmentation import slic, find_boundaries
-from skimage.future import graph
+from skimage import graph
 from skimage.io import imread
 
 
