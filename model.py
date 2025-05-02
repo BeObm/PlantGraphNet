@@ -274,7 +274,7 @@ class GNNModel(torch.nn.Module):
         
         init.xavier_uniform_(self.node_feature_fc.weight)
         init.zeros_(self.node_feature_fc.bias)
-        if self.use_image_feats:
+        if self.use_image_feats==True:
             # Load a pretrained ResNet model for image feature extraction
             resnet = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
             self.image_feature_extractor = torch.nn.Sequential(*list(resnet.children())[:-1])  # Remove last FC layer
@@ -317,7 +317,8 @@ class GNNModel(torch.nn.Module):
         node_features = self.node_feature_fc(node_features)
 
         # Image feature processing
-        if self.use_image_feats:
+        if self.use_image_feats==True:
+
             image_features = data.image_features  # Assuming images are already preprocessed to (batch, 3, H, W)
             img_features = self.image_feature_extractor(image_features)
             img_features = img_features.view(img_features.size(0), -1)  # Flatten
@@ -340,7 +341,7 @@ def train_function(epochs, model, train_dataloader,val_dataloader,type_graph, cr
     pbar.set_description("training model")
     train_losses = []
     train_accuracies = []
-    best_loss=99999
+    best_loss=9999999999999999999
 
     model.train()
     for epoch in range(epochs):

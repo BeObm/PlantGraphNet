@@ -82,11 +82,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--type_node_detector", default="mesh3d_graph", type=str, help="define how to detect nodes", choices=["grid_graph", "superpixel_graph", "keypoint_graph", "region_adjacency_graph","feature_map_graph","mesh3d_graph","multi_graphs" ]) 
-    parser.add_argument("--apply_transform", default=True, type=bool, help="apply transform", choices=[True, False])
+    parser.add_argument("--apply_transform", default=True, help="apply transform", choices=[True, False])
     parser.add_argument("--images_per_class", type=int, default=0, help="number of images to use for training/test per class; 0 means all")
     parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
     parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
-    parser.add_argument("--use_image_feats", default=True, type=bool, help="use input  image features as graph feature or not")
+    parser.add_argument("--use_image_feats", default=True, help="use input  image features as graph feature or not")
     args = parser.parse_args()
 
 
