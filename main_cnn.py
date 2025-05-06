@@ -23,15 +23,15 @@ if __name__ == "__main__":
     parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="baseline", choices=["baseline", "Our_CNN_Model","hybrid"])
     parser.add_argument("--model_name", help="Model name", default="VGG19", choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet","Unet"])
     parser.add_argument("--dataset_size", type=int, default=0, help="number  of images to use for training per class, 0 means all")
-    parser.add_argument("--use_class_weights", default=True, type=bool, help="use class weights", choices=[True, False])
+    parser.add_argument("--use_class_weights", default=True, help="use class weights")
     parser.add_argument("--hidden_dim", default=128, type=int, help="hidden_dim")
     parser.add_argument("--add_fix_feats", default=240, type=int, help="addiional fixed feature size per view")
     parser.add_argument("--num_epochs", type=int, default=200, help="num_epochs")
-    parser.add_argument("--batch_size", type=int, default=32*4, help="batch_size")
-    parser.add_argument("--lr", type=float, default=0.0001, help="learning_rate")
-    parser.add_argument("--wd", type=float, default=0.0001, help="wd")
+    parser.add_argument("--batch_size", type=int, default=16*4, help="batch_size")
+    parser.add_argument("--lr", type=float, default=0.0005, help="learning_rate")
+    parser.add_argument("--wd", type=float, default=0.00001, help="wd")
     parser.add_argument("--criterion", default="CrossEntropy", help="criterion")
-    parser.add_argument("--gpu_idx", default=4, help="GPU  num")
+    parser.add_argument("--gpu_idx", type=int, default=4, help="GPU  num")
 
     args = parser.parse_args()                    
     train_data= "dataset/images/train"
@@ -42,6 +42,7 @@ if __name__ == "__main__":
     print(f"{'*'*10} Using {args.type_model} model with {args.model_name} architecture  {'*'*10} \n")
     if args.type_model != "hybrid":
         num_classes, train_loader,val_loader, test_loader, class_names, class_weights = load_data(dataset_dir=[train_data,val_data,test_data], batch_size=args.batch_size, num_samples_per_class=args.dataset_size, use_class_weights=args.use_class_weights)
+        class_weights = compute_class_weights(train_loader, len(class_names),"cnn", accelerator.device)
     elif args.type_model == "hybrid":
         train_loader, label_encoder,class_names = create_dataloader(data_dir=train_data,
                                                         feature_list= feature_list,
@@ -97,8 +98,8 @@ if __name__ == "__main__":
             print(f"Loaded saved model from {saved_model_path}")
         except:
             pass
-    criterion = nn.CrossEntropyLoss(reduction='mean')
-    #criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='mean')
+    #criterion = nn.CrossEntropyLoss(reduction='mean')
+    criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='mean')
     # criterion= FocalLoss(alpha=class_weights,gamma=2.0, reduction="mean")
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)

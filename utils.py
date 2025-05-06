@@ -779,7 +779,7 @@ class FocalLoss(nn.Module):
             return focal_loss.sum()
         return focal_loss
 
-def compute_class_weights(dataloader, num_classes, device="cpu"):
+def compute_class_weights(dataloader, num_classes, type="hybrid", device="cpu"):
     """
     Computes class weights based on label frequencies from a DataLoader.
 
@@ -792,11 +792,14 @@ def compute_class_weights(dataloader, num_classes, device="cpu"):
         torch.Tensor: Class weights tensor for Weighted Cross-Entropy Loss.
     """
     class_counts = Counter()
-
+    
+    if type=="hybrid":
     # Iterate over the DataLoader to collect label frequencies
-    for _, _, labels in dataloader:  # Assuming (images, features, labels) are returned
-        class_counts.update(labels.tolist())  # Convert tensor to list and update counter
-
+        for _, _, labels in dataloader:  # Assuming (images, features, labels) are returned
+            class_counts.update(labels.tolist())  # Convert tensor to list and update counter
+    else:
+        for _, labels in dataloader:  # Assuming (images, features, labels) are returned
+            class_counts.update(labels.tolist())  # Convert tensor to list and update counter
     # Convert counts to a tensor
     num_samples_per_class = torch.tensor(
         [class_counts[i] for i in range(num_classes)], dtype=torch.float32
