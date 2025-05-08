@@ -4,7 +4,7 @@ import os
 
 import torch.nn as nn
 from model import CNNModel
-import torch
+import torch                                                         
 import torch.optim as optim
 from Baselines.baseline_models import baseline_model
 from train_test_model import train_model, test_model
@@ -12,7 +12,7 @@ from datetime import datetime
 from utils import *
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":                                   
     set_seed()
     parser = argparse.ArgumentParser()
 
