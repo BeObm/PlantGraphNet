@@ -65,7 +65,8 @@ def train_model(model,accelerator, train_loader, val_loader, criterion, optimize
     # Save training stats
     plot_and_save_training_performance(num_epochs=args.num_epochs,
                                        losses=train_loss_values,
-                                       folder_name=args.result_dir)
+                                       folder_name=args.result_dir,
+                                       args=args)
 
     return model
 

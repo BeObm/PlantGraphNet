@@ -1,97 +1,73 @@
 import argparse
-from datetime import datetime
-from torch_geometric.nn import GENConv, GATConv
-from tqdm import tqdm
-import torch.multiprocessing as mp
-from torch.utils.data.distributed import DistributedSampler
-from torch.nn.parallel import DistributedDataParallel as DDP
-from model import *
+import pandas as pd
 import os
-import gc
+
+import torch.nn as nn
+from model import CNNModel
+import torch                                                         
+import torch.optim as optim
+from Baselines.baseline_models import baseline_model
+from train_test_model import train_model, test_model
+from datetime import datetime
+from utils import *
 
 
-   
-if __name__ == "__main__":
+if __name__ == "__main__":                                   
     set_seed()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--type_graph", default="grid", help="define how to construct nodes and egdes", choices=["harris", "grid", "multi"])
-    parser.add_argument("--use_image_feats", default=False, type=bool, help="use input  image features as graph feature or not")
-    parser.add_argument("--hidden_dim", default=64, type=int, help="hidden_dim")
-    parser.add_argument("--num_epochs", type=int, default=2, help="num_epochs")
-    parser.add_argument("--batch_size", type=int, default=4, help="batch_size")
-    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning_rate")
+    parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="baseline", choices=["baseline", "Our_CNN_Model"])
+    parser.add_argument("--model_name", help="Model name", default="ResNet101", choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet"])
+    parser.add_argument("--dataset_size", type=int, default=0, help="number  of images to use for training per class, 0 means all")
+    parser.add_argument("--hidden_dim", default=256, type=int, help="hidden_dim")
+    parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
+    parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
+    parser.add_argument("--learning_rate", type=float, default=0.0001, help="learning_rate")
     parser.add_argument("--wd", type=float, default=0.005, help="wd")
-    parser.add_argument("--Conv1", default=GENConv, help="Conv1")
-    parser.add_argument("--Conv2", default=GATConv, help="Conv2")
-    parser.add_argument("--gpu_idx", default=0, help="GPU  num")
-    parser.add_argument("--connectivity", type=str, default="4-connectivity", help="connectivity", choices=["4-connectivity", "8-connectivity"])
-    
+    parser.add_argument("--criterion", default="CrossEntropy", help="criterion")
+    parser.add_argument("--gpu_idx", default=1, help="GPU  num")
+
     args = parser.parse_args()
 
-    create_config_file(args.type_graph, args.connectivity)
-    device = torch.device(f'cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Device: {device}")
-    torch.backends.cuda.matmul.allow_tf32 = False
-    torch.backends.cudnn.allow_tf32 = False
-    
-    
-    train_graph_list,feat_size,class_names = Load_graphdata(f"{config['param']['graph_dataset_folder']}/train")
-    test_graph_list,_,_ = Load_graphdata(f"{config['param']['graph_dataset_folder']}/test")
-    
-    gc.collect()
-    torch.cuda.empty_cache()     
+    args.device = torch.device(f'cuda:{args.gpu_idx}' if torch.cuda.is_available() else 'cpu')
+    num_classes, train_loader, class_names = load_data(dataset_dir="dataset/images/train", batch_size=args.batch_size, num_samples_per_class=args.dataset_size,type_data="train")
+    _, test_loader, _ = load_data(dataset_dir="dataset/images/test", batch_size=args.batch_size,num_samples_per_class=args.dataset_size,type_data="test")
 
-    start_time=datetime.now()
-    train_loader= graphdata_loader(train_graph_list,args=args,type_data="train", ddp=False)
-    test_loader=graphdata_loader(test_graph_list,args=args,type_data="test", ddp=False)
-    
-    
-    input_dim = feat_size
-    hidden_dim = args.hidden_dim
-    output_dim = 10
-    num_epochs = args.num_epochs
-    batch_size = args.batch_size
 
-    model = GNNModel(num_node_features=input_dim,
-                     hidden_dim=hidden_dim,
-                     num_classes=output_dim,
-                     Conv1=args.Conv1,
-                     Conv2=args.Conv2,
-                     image_feature=50176,
-                     use_image_feats=args.use_image_feats).to(device)
-    pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Total number of trainable parameters in the model: {pytorch_total_params}")
+    start_time = datetime.now()
+    if args.type_model == "baseline":
+        model = baseline_model(model_name=args.model_name, num_classes=num_classes)
+    elif args.type_model == "Our_CNN_Model":
+        model = CNNModel()
+        args.model_name = "New_CNN_Model"
+        
+    print(f"Model: {args.model_name} | device: {args.device}")
+
+    if args.dataset_size == 0:
+        args.result_dir = f"results/CNN Models/full_dataset/{args.model_name}"
+    else:
+        args.result_dir = f"results/CNN Models/{args.dataset_size}images_per_class/{args.model_name}"
+    os.makedirs(args.result_dir, exist_ok=True)
+    saved_model_path = f'{args.result_dir}/{args.model_name}_weight.pth'
+
+    if os.path.isfile(saved_model_path):
+        try:
+            model.load_state_dict(torch.load(saved_model_path))
+            print(f"Loaded saved model from {saved_model_path}")
+        except:
+            pass
+    model = model.to(args.device)
+
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate,weight_decay=args.wd)
-    pbar = tqdm(num_epochs)
-    pbar.set_description("training model")
-    best_loss=99999
-    train_losses = []
-    train_accuracies = []
-    for epoch in range(num_epochs):
-        loss = train_function(model, train_loader, optimizer, criterion,device=device)
-        train_losses.append(loss)
-        if loss <= best_loss:
-            best_loss = loss
-            pbar.set_description(f"Training model.|Best loss={round(best_loss, 5)}")
-        pbar.write(f'Epoch [{epoch}/{num_epochs}]: Loss: {round(loss, 5)}')
-        pbar.update(1)
-    print(f"Time taken to train the model: { datetime.now() - start_time}")
+    optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=0.0001)
+    model= train_model(model, train_loader, test_loader, criterion, optimizer, args=args)
+    torch.save(model.state_dict(), saved_model_path)
+    end_time = datetime.now()
+    cl_report = test_model(model, test_loader, class_names,args=args)
 
-    plot_and_save_training_performance(num_epochs=num_epochs,
-                                       losses=train_losses,
-                                       folder_name=config['param']['result_folder'])
+    cr = pd.DataFrame(cl_report).transpose()
+    cr.to_excel(f"{args.result_dir}/result_for_{args.model_name}.xlsx")
 
-    cls_report = test_function(model=model,
-                        loader=test_loader,
-                        device=device,
-                        class_names=class_names)
-
-    cr = pd.DataFrame(cls_report).transpose()
-    cr.to_excel( f"{config['param']['result_folder']}/result_for_GNN_Model.xlsx")
-    
-    print(f"Model Classification report for GNN model \n ")
+    print(f"Model Classification report for {args.model_name} \n ")
     print(cr)
-    
-
+    print(f"Time taken to train the model: {end_time - start_time}")
