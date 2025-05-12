@@ -17,9 +17,9 @@ def train_model(model,accelerator, train_loader, val_loader, criterion, optimize
     print("Trainning Model...")
     model.train()
     for epoch in tqdm(range(args.num_epochs)):
-       
+        
         running_loss = 0.0
-
+        num_samples = 0
         for inputs, labels in train_loader:
             # inputs, labels = inputs.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -27,15 +27,16 @@ def train_model(model,accelerator, train_loader, val_loader, criterion, optimize
             loss = criterion(outputs, labels)
             accelerator.backward(loss)
             running_loss += accelerator.gather(loss).sum().item() * inputs.size(0)
+            num_samples += inputs.size(0)
             optimizer.step()
             #scheduler.step()
-
+        
         model.eval()
 
         # Compute and store training loss and accuracy
-        train_loss = running_loss / len(train_loader.dataset)
+        train_loss = running_loss / num_samples
         if np.isnan(train_loss):
-          train_loss = 999
+          train_loss = 99999999999999999999999
         train_loss_values.append(train_loss)
         total = 0
         correct = 0
@@ -134,7 +135,7 @@ def train_hybrid_model(model,accelerator, train_loader, val_loader,criterion, op
             total += all_labels.size(0)
 
         train_acc = correct / total
-        avg_train_loss = running_loss / len(train_loader.dataset)
+        avg_train_loss = running_loss / len(train_loader)
 
         # Validation Phase
         model.eval()
