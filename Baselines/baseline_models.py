@@ -25,10 +25,6 @@ def baseline_model(model_name, num_classes):
 
 
 
-
-def Unet_Model(num_classes):
-    pass
-
 def AlexNet_Model(num_classes):
     model = models.alexnet(pretrained=True)
     for param in model.parameters():
