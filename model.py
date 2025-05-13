@@ -255,7 +255,7 @@ class HybridImageClassifier(nn.Module):
 
 
 class GNNModel(torch.nn.Module):
-    def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2,image_feature=150, use_image_feats=False):
+    def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2,image_feature=150, use_image_feats=False,f_model="unet"):
         super(GNNModel, self).__init__()
         set_seed()
         # Graph feature extraction layers
@@ -263,7 +263,7 @@ class GNNModel(torch.nn.Module):
         self.batch_norm1 = torch.nn.BatchNorm1d(hidden_dim)
         self.act = torch.nn.ReLU()
         self.use_image_feats = use_image_feats
-        
+        self.f_model = f_model
         self.graph_conv2 = Conv2(hidden_dim, hidden_dim)
         self.batch_norm2 = torch.nn.BatchNorm1d(hidden_dim)
 
@@ -275,10 +275,14 @@ class GNNModel(torch.nn.Module):
         init.xavier_uniform_(self.node_feature_fc.weight)
         init.zeros_(self.node_feature_fc.bias)
         if self.use_image_feats==True:
+            if self.f_model=="unet":
+                self.image_feature_extractor = UNetFeatureExtractor(in_channels=3, feature_dim=image_feature)
+                self.img_feature_fc = nn.Linear(512, hidden_dim)
+            else:
             # Load a pretrained ResNet model for image feature extraction
-            resnet = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
-            self.image_feature_extractor = torch.nn.Sequential(*list(resnet.children())[:-1])  # Remove last FC layer
-            self.img_feature_fc = torch.nn.Linear(2048, hidden_dim)  # Map ResNet features to hidden_dim
+                resnet = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
+                self.image_feature_extractor = torch.nn.Sequential(*list(resnet.children())[:-1])  # Remove last FC layer
+                self.img_feature_fc = torch.nn.Linear(2048, hidden_dim)  # Map ResNet features to hidden_dim
             
             # Initialize weights for `img_feature_fc` layer
             init.xavier_uniform_(self.img_feature_fc.weight)
@@ -318,12 +322,15 @@ class GNNModel(torch.nn.Module):
 
         # Image feature processing
         if self.use_image_feats==True:
-
             image_features = data.image_features  # Assuming images are already preprocessed to (batch, 3, H, W)
-            img_features = self.image_feature_extractor(image_features)
-            img_features = img_features.view(img_features.size(0), -1)  # Flatten
-            img_features = self.img_feature_fc(img_features)
-            
+            if self.f_model=="unet":
+                 image_feats = self.image_feature_extractor(image_features)  # (B, 512)
+                 image_feats = self.img_feature_fc(image_feats)   
+            else:
+                img_features = self.image_feature_extractor(image_features)
+                img_features = img_features.view(img_features.size(0), -1)  # Flatten
+                img_features = self.img_feature_fc(img_features)
+                
             combined_features = torch.cat([node_features, img_features], dim=1)  # Concatenate graph & image features
             combined_features = self.dropout(combined_features)
             output = self.fc(combined_features)
@@ -333,6 +340,38 @@ class GNNModel(torch.nn.Module):
         return output
 
 
+class UNetFeatureExtractor(nn.Module):
+    def __init__(self, in_channels=3, feature_dim=512):
+        super(UNetFeatureExtractor, self).__init__()
+
+        def conv_block(in_c, out_c):
+            return nn.Sequential(
+                nn.Conv2d(in_c, out_c, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(out_c, out_c, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True)
+            )
+
+        self.encoder1 = conv_block(in_channels, 64)
+        self.pool1 = nn.MaxPool2d(2)
+
+        self.encoder2 = conv_block(64, 128)
+        self.pool2 = nn.MaxPool2d(2)
+
+        self.encoder3 = conv_block(128, 256)
+        self.pool3 = nn.MaxPool2d(2)
+
+        self.bottleneck = conv_block(256, 512)
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))  # Output shape: (B, 512, 1, 1)
+
+    def forward(self, x):
+        x = self.encoder1(x)
+        x = self.encoder2(self.pool1(x))
+        x = self.encoder3(self.pool2(x))
+        x = self.bottleneck(self.pool3(x))
+        x = self.global_pool(x)
+        x = torch.flatten(x, 1)  # Shape: (B, 512)
+        return x  # Return feature vector
 
 
 
