@@ -165,9 +165,13 @@ def save_plots(train_losses, metrics_dict):
     training_df.to_csv(f"{config['param']['result_folder']}/training_evolution.csv", index=False)
 
 
-def plot_and_save_training_performance(num_epochs, losses, folder_name,args):
-    csv_file=f"{folder_name}/{args.model_name}_param_({args.gpu_idx})GPU_training_evolution.csv"
-    pdf_file=f"{folder_name}/{args.model_name}_param_({args.gpu_idx})GPU_training_training_performance.pdf"
+def plot_and_save_training_performance(num_epochs, losses, folder_name,args,type="GNN"):
+    if type=="GNN":
+        csv_file=f"{folder_name}/{args.type_graph}_param_({args.nb_gpus})GPU_training_evolution.csv"
+        pdf_file=f"{folder_name}/{args.type_graph}_param_({args.nb_gpus})GPU_training_training_performance.pdf"
+    else:
+        csv_file=f"{folder_name}/{args.model_name}_param_({args.gpu_idx})GPU_training_evolution.csv"
+        pdf_file=f"{folder_name}/{args.model_name}_param_({args.gpu_idx})GPU_training_training_performance.pdf"
     with open(csv_file, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Epoch', 'Loss'])
