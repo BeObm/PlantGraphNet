@@ -296,6 +296,7 @@ class GNNModel(torch.nn.Module):
             init.xavier_uniform_(self.fc.weight)
             init.zeros_(self.fc.bias)
 
+        self.g_dropout = torch.nn.Dropout(p=0.0)
         self.dropout = torch.nn.Dropout(p=0.2)
 
     def forward(self, data):
@@ -307,14 +308,17 @@ class GNNModel(torch.nn.Module):
         
         node_features = self.graph_conv1(node_features, edge_index, edge_attr)
         node_features = self.batch_norm1(node_features)
+        node_features = self.g_dropout(node_features)
         node_features = self.act(node_features)
 
         node_features = self.graph_conv2(node_features, edge_index, edge_attr)
         node_features = self.batch_norm2(node_features)
+        node_features = self.g_dropout(node_features)
         node_features = self.act(node_features)
 
         node_features = self.graph_conv3(node_features, edge_index, edge_attr)
         node_features = self.batch_norm3(node_features)
+        node_features = self.g_dropout(node_features)
         node_features = self.act(node_features)
         
         node_features = global_add_pool(node_features, batch)  # Global pooling for graph features
