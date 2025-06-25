@@ -42,8 +42,6 @@ def save_graph(graph, output_path, label):
 
 
 
-
-
 def load_image_s(image_path):
     img = imread(image_path)
     if img.dtype == np.uint8:
