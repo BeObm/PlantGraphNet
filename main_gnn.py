@@ -69,9 +69,7 @@ if __name__ == "__main__":
                      image_feature=67500,
                      use_image_feats=args.use_image_feats)
     
-    
-    
-    
+       
     pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total number of trainable parameters in the model: {pytorch_total_params}")
     add_config("param", "Model parameters", pytorch_total_params )
