@@ -66,7 +66,8 @@ def train_model(model,accelerator, train_loader, val_loader, criterion, optimize
     plot_and_save_training_performance(num_epochs=args.num_epochs,
                                        losses=train_loss_values,
                                        folder_name=args.result_dir,
-                                       args=args)
+                                       args=args,
+                                       type="CNN")
 
     return model
 
@@ -167,7 +168,8 @@ def train_hybrid_model(model,accelerator, train_loader, val_loader,criterion, op
              )
     plot_and_save_training_performance(num_epochs=args.num_epochs,
                                        losses=train_loss_values,
-                                       folder_name=args.result_dir)
+                                       folder_name=args.result_dir,
+                                       type="CNN")
 
     return model
 

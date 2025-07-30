@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--dataset_name", help="dataset name", default="lidl", choices=["lidl", "other"])
     parser.add_argument("--type_model", help="type of the model Baseline or our own CNN model", default="baseline", choices=["baseline", "Our_CNN_Model","hybrid"])
-    parser.add_argument("--model_name", help="Model name", default="VGG19", choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet","Unet"])
+    parser.add_argument("--model_name", help="Model name", default="yolo12") # choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet","Unet","yolo8","yolo11","yolo12"])
     parser.add_argument("--dataset_size", type=int, default=0, help="number  of images to use for training per class, 0 means all")
     parser.add_argument("--use_class_weights", default=False, help="use class weights")
     parser.add_argument("--hidden_dim", default=256, type=int, help="hidden_dim")

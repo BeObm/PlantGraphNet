@@ -255,36 +255,45 @@ class HybridImageClassifier(nn.Module):
 
 
 class GNNModel(torch.nn.Module):
-    def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2,image_feature=150, use_image_feats=False):
+    def __init__(self, num_node_features, hidden_dim, num_classes, Conv1, Conv2,
+                 image_feature=150, use_image_feats=False, image_backbone='resnet'):
         super(GNNModel, self).__init__()
         set_seed()
-        # Graph feature extraction layers
+
+        # Graph layers
         self.graph_conv1 = Conv1(num_node_features[0], hidden_dim)
         self.batch_norm1 = torch.nn.BatchNorm1d(hidden_dim)
-        self.act = torch.nn.ReLU()
-        self.use_image_feats = use_image_feats
-        
         self.graph_conv2 = Conv2(hidden_dim, hidden_dim)
         self.batch_norm2 = torch.nn.BatchNorm1d(hidden_dim)
-
         self.graph_conv3 = Conv2(hidden_dim, hidden_dim)
         self.batch_norm3 = torch.nn.BatchNorm1d(hidden_dim)
-        
-        self.node_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)  # Node feature transformation
-        
+        self.act = torch.nn.ReLU()
+        self.node_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)
         init.xavier_uniform_(self.node_feature_fc.weight)
         init.zeros_(self.node_feature_fc.bias)
-        if self.use_image_feats==True:
-            # Load a pretrained ResNet model for image feature extraction
-            resnet = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
-            self.image_feature_extractor = torch.nn.Sequential(*list(resnet.children())[:-1])  # Remove last FC layer
-            self.img_feature_fc = torch.nn.Linear(2048, hidden_dim)  # Map ResNet features to hidden_dim
-            
-            # Initialize weights for `img_feature_fc` layer
+
+        self.use_image_feats = use_image_feats
+
+        if self.use_image_feats:
+            self.image_feature_extractor = baseline_model(model_name=image_backbone, num_classes=hidden_dim)
+            # self.image_feature_extractor= self.image_feature_extractor[:-1]
+            img_feature_dim=2048
+            # if self.image_backbone == 'resnet':
+            #     resnet = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
+            #     self.image_feature_extractor = torch.nn.Sequential(*list(resnet.children())[:-1])  # remove FC
+            #     img_feature_dim = 2048
+            # elif self.image_backbone == 'yolo8':
+            #     yolov8 = YOLO("yolov8n.pt")  # or yolov8s.pt/m.pt etc.
+            #     self.image_feature_extractor = yolov8.model.model[:20]  # up to backbone
+            #     img_feature_dim = 512  # depends on the model; adjust if using larger models
+            # else:
+            #     raise ValueError(f"Unsupported image backbone: {self.image_backbone}")
+
+            self.img_feature_fc = torch.nn.Linear(hidden_dim, hidden_dim)
             init.xavier_uniform_(self.img_feature_fc.weight)
             init.zeros_(self.img_feature_fc.bias)
-            self.fc = torch.nn.Linear(hidden_dim * 2, num_classes)  # Classifier combining graph & image features
-            
+
+            self.fc = torch.nn.Linear(hidden_dim * 2, num_classes)
             init.xavier_uniform_(self.fc.weight)
             init.zeros_(self.fc.bias)
         else:
@@ -295,12 +304,11 @@ class GNNModel(torch.nn.Module):
         self.dropout = torch.nn.Dropout(p=0.2)
 
     def forward(self, data):
-        # Graph feature processing
         node_features = data.x
         edge_index = data.edge_index.view(2, -1)
         edge_attr = data.edge_attr
         batch = data.batch
-        
+
         node_features = self.graph_conv1(node_features, edge_index, edge_attr)
         node_features = self.batch_norm1(node_features)
         node_features = self.act(node_features)
@@ -312,24 +320,28 @@ class GNNModel(torch.nn.Module):
         node_features = self.graph_conv3(node_features, edge_index, edge_attr)
         node_features = self.batch_norm3(node_features)
         node_features = self.act(node_features)
-        
-        node_features = global_add_pool(node_features, batch)  # Global pooling for graph features
+
+        node_features = global_add_pool(node_features, batch)
         node_features = self.node_feature_fc(node_features)
 
-        # Image feature processing
-        if self.use_image_feats==True:
+        if self.use_image_feats:
+            image_features = data.image_features  # (B, 3, H, W)
+            img_feats = self.image_feature_extractor(image_features)
 
-            image_features = data.image_features  # Assuming images are already preprocessed to (batch, 3, H, W)
-            img_features = self.image_feature_extractor(image_features)
-            img_features = img_features.view(img_features.size(0), -1)  # Flatten
-            img_features = self.img_feature_fc(img_features)
-            
-            combined_features = torch.cat([node_features, img_features], dim=1)  # Concatenate graph & image features
-            combined_features = self.dropout(combined_features)
-            output = self.fc(combined_features)
+            # if self.image_backbone == 'resnet':
+            #     img_feats = img_feats.view(img_feats.size(0), -1)  # (B, 2048)
+            # elif self.image_backbone == 'yolo':
+            #     if isinstance(img_feats, list):  # YOLOv8 returns list of feature maps
+            #         img_feats = img_feats[-1]
+            #     img_feats = F.adaptive_avg_pool2d(img_feats, (1, 1))
+            #     img_feats = img_feats.view(img_feats.size(0), -1)  # (B, 512)
+
+            img_feats = self.img_feature_fc(img_feats)
+            combined = torch.cat([node_features, img_feats], dim=1)
+            combined = self.dropout(combined)
+            output = self.fc(combined)
         else:
             output = self.fc(node_features)
-
         return output
 
 
