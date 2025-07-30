@@ -1,4 +1,6 @@
-
+/results
+/results 18052025
+/results_Baseline_13_05_2025
 /dataset
 *.pth
 .idea/HeathlandSpeciesClassifier.iml
@@ -8,3 +10,5 @@
 *.pyc
 *.pyc
 *.ipynb
+/__pycache__
+*.pyc
