@@ -20,10 +20,10 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", help="Model name", default="ResNet101")#, choices=["VGG19", "VGG16", "ResNet50",  "ResNet101","AlexNet", "MobileNetV2", "GoogleNet","Unet"])
     parser.add_argument("--dataset_size", type=int, default=0, help="number  of images to use for training per class, 0 means all")
     parser.add_argument("--hidden_dim", default=256, type=int, help="hidden_dim")
-    parser.add_argument("--num_epochs", type=int, default=150, help="num_epochs")
+    parser.add_argument("--num_epochs", type=int, default=100, help="num_epochs")
     parser.add_argument("--batch_size", type=int, default=32, help="batch_size")
-    parser.add_argument("--learning_rate", type=float, default=0.0001, help="learning_rate")
-    parser.add_argument("--wd", type=float, default=0.005, help="wd")
+    parser.add_argument("--learning_rate", type=float, default=0.0005, help="learning_rate")
+    parser.add_argument("--wd", type=float, default=0.0001, help="wd")
     parser.add_argument("--criterion", default="CrossEntropy", help="criterion")
     parser.add_argument("--gpu_idx", default=1, help="GPU  num")
 
@@ -37,6 +37,8 @@ if __name__ == "__main__":
     start_time = datetime.now()
     if args.type_model == "baseline":
         model = baseline_model(model_name=args.model_name, num_classes=num_classes)
+        for param in model.parameters():
+            param.requires_grad = True
     elif args.type_model == "Our_CNN_Model":
         model = CNNModel()
         args.model_name = "New_CNN_Model"
@@ -57,9 +59,10 @@ if __name__ == "__main__":
         except:
             pass
     model = model.to(args.device)
-
+    pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total number of trainable parameters in the model: {pytorch_total_params}")
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=0.0001)
+    optimizer = optim.AdamW(model.parameters(), lr=0.00005, weight_decay=0.0001)
     model= train_model(model, train_loader, test_loader, criterion, optimizer, args=args)
     torch.save(model.state_dict(), saved_model_path)
     end_time = datetime.now()

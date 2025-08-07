@@ -229,26 +229,32 @@ def baseline_model(model_name, num_classes):
         return_ = YOLOv8Classifier(num_classes=num_classes)
     elif model_name == "yolo11s":
         return_ = YOLOv11sClassifier(num_classes=num_classes)
-    elif model_name == "yolo10n":
-        return_ = YOLOv10nClassifier(num_classes=num_classes)
+    elif model_name == "yolo8n":
+        return_ = YOLOv8nClassifier(num_classes=num_classes)
 
     elif model_name == "yolo11l":
         return_ = YOLOv11lClassifier(num_classes=num_classes)
-    elif model_name == "yolo10l":
-        return_ = YOLOv10lClassifier(num_classes=num_classes)
+    elif model_name == "yolo11n":
+        return_ = YOLOv11nClassifier(num_classes=num_classes)
 
     elif model_name == "yolo11m":
         return_ = YOLOv11mClassifier(num_classes=num_classes)
-    elif model_name == "yolo10m":
-        return_ = YOLOv10mClassifier(num_classes=num_classes)
+    elif model_name == "yolo8l":
+        return_ = YOLOv8lClassifier(num_classes=num_classes)
 
     elif model_name == "yolo11x":
         return_ = YOLOv11xClassifier(num_classes=num_classes)
-    elif model_name == "yolo10x":
-        return_ = YOLOv10xClassifier(num_classes=num_classes)
+    elif model_name == "yolo8x":
+        return_ = YOLOv8xClassifier(num_classes=num_classes)
     else:
         raise ValueError(f"Unknown model name: {model_name}")
     return return_
+
+
+
+
+
+
 
 
 
@@ -275,11 +281,20 @@ class YOLOv8Classifier(nn.Module):
             # nn.Linear(256, num_classes)
         )
 
-    def train(self, mode=True):
+    def set_train_mode(self, mode=True):
+        # Put self.yolo.model (the internal nn.Module) in train mode
+        mode=True
+        self.yolo.model.train(mode)
 
+        # Put your backbone and classifier in train mode
         self.backbone.train(mode)
         self.pool.train(mode)
         self.classifier.train(mode)
+
+        # Set requires_grad for all params accordingly
+        for param in self.parameters():
+            param.requires_grad = mode
+
         return self
 
     def forward(self, x):
@@ -288,15 +303,22 @@ class YOLOv8Classifier(nn.Module):
         x = self.classifier(x)
         return x
 
+    def eval(self):
+        # Same for eval mode
+        self.yolo.model.eval()
+        self.backbone.eval()
+        self.pool.eval()
+        self.classifier.eval()
 
-class YOLOv11lClassifier(YOLOv8Classifier):
+        return self
+class YOLOv11nClassifier(YOLOv8Classifier):
     def __init__(self, num_classes=10):
         super().__init__(pretrained_model='yolo11n-cls.pt', num_classes=num_classes)
 
 
-class YOLOv10lClassifier(YOLOv8Classifier):
+class YOLOv8lClassifier(YOLOv8Classifier):
     def __init__(self, num_classes=10):
-        super().__init__(pretrained_model='yolo10l-cls.pt', num_classes=num_classes)
+        super().__init__(pretrained_model='yolov8l-cls.pt', num_classes=num_classes)
 
 
 class YOLOv11sClassifier(YOLOv8Classifier):
@@ -304,9 +326,9 @@ class YOLOv11sClassifier(YOLOv8Classifier):
         super().__init__(pretrained_model='yolo11s-cls.pt', num_classes=num_classes)
 
 
-class YOLOv10nClassifier(YOLOv8Classifier):
+class YOLOv8nClassifier(YOLOv8Classifier):
     def __init__(self, num_classes=10):
-        super().__init__(pretrained_model='yolo10n-cls.pt', num_classes=num_classes)
+        super().__init__(pretrained_model='yolov8n-cls.pt', num_classes=num_classes)
 
 
 class YOLOv11mClassifier(YOLOv8Classifier):
@@ -314,9 +336,9 @@ class YOLOv11mClassifier(YOLOv8Classifier):
         super().__init__(pretrained_model='yolo11m-cls.pt', num_classes=num_classes)
 
 
-class YOLOv10mClassifier(YOLOv8Classifier):
+class YOLOv8lClassifier(YOLOv8Classifier):
     def __init__(self, num_classes=10):
-        super().__init__(pretrained_model='yolo10m-cls.pt', num_classes=num_classes)
+        super().__init__(pretrained_model='yolov8l-cls.pt', num_classes=num_classes)
 
 
 
@@ -325,9 +347,9 @@ class YOLOv11xClassifier(YOLOv8Classifier):
         super().__init__(pretrained_model='yolo11x-cls.pt', num_classes=num_classes)
 
 
-class YOLOv10xClassifier(YOLOv8Classifier):
+class YOLOv8xClassifier(YOLOv8Classifier):
     def __init__(self, num_classes=10):
-        super().__init__(pretrained_model='yolo10x-cls.pt', num_classes=num_classes)
+        super().__init__(pretrained_model='yolov8x-cls.pt', num_classes=num_classes)
 
 
 

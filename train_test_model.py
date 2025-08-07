@@ -16,8 +16,14 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, args):
     test_accuracy_values_during_training = []
     print("Trainning Model...")
 
+    # print(f"Type of model: {type(model)}")
+    # print(f"Value of model: {model}")
+
     for epoch in tqdm(range(args.num_epochs)):
-        model.train()
+        if args.model_name.lower().startswith("yolo"):
+            model.set_train_mode(True)
+        else:
+            model.train()
         running_loss = 0.0
 
         for inputs, labels in train_loader:
