@@ -19,7 +19,10 @@ config = ConfigParser()
 RunCode = dates = datetime.now().strftime("%d-%m_%Hh%M")
 project_root_dir = os.path.abspath(os.getcwd())
 
-def create_config_file(type_dataset,type_graph,connectivity):
+def create_config_file(args):
+    type_dataset= args.type_dataset
+    type_graph = args.type_graph
+    connectivity = args.connectivity
     configs_folder = osp.join(project_root_dir, f'results/{type_dataset}/{RunCode}')
     os.makedirs(configs_folder, exist_ok=True)
     config_filename = f"{configs_folder}/ConfigFile_{RunCode}.ini"
