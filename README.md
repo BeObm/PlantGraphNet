@@ -15,7 +15,6 @@ The core idea is to:
 
 This README aligns the codebase explicitly with the methodology, dataset, and experiments described in the paper.
 
----
 
 ## 1. Project Structure
 
@@ -37,7 +36,6 @@ PlantGraphNet/
 * **Reproducible**: fixed splits, explicit baselines
 * **Scalable**: supports distributed data-parallel (DDP) training
 
----
 
 ## 2. Dataset Description (as used in the paper)
 
@@ -65,7 +63,6 @@ The dataset contains **12,140 image patches**, split as:
 
 Standard data augmentation (rotation, flipping, zooming) is applied during training.
 
----
 
 ## 3. Graph Dataset Construction
 
@@ -96,9 +93,6 @@ The script:
 3. Constructs a kNN graph
 4. Saves a PyTorch Geometric `Data` object
 
----
-
-
 
 
 ## 4. Training and Evaluation
@@ -120,7 +114,7 @@ torchrun --nproc_per_node=4 main_gnn.py
 
 DDP provides **near-linear speed-up** while preserving convergence, as shown in the paper.
 
----
+
 
 ## 5. Baseline Models
 
@@ -139,7 +133,7 @@ The following CNN baselines are implemented and evaluated under identical settin
 python Baselines/baseline_main.py \
     --model_name AlexNet
 ```
----
+
 
 ## 6. Running on a New Dataset
 
@@ -153,7 +147,7 @@ To apply PlantGraphNet to a new plant or ecological dataset:
    * alternative graph construction (RAG, superpixels) is desired
 4. Build graphs, split data, and train as usual
 
----
+
 
 
 
@@ -171,7 +165,7 @@ Possible extensions:
 * Multilabel and open-world classification
 * Integration with segmentation models
 
----
+
 
 ## 8. Citation
 
@@ -179,7 +173,7 @@ If you use this code, please cite:
 
 Oloulade, B. M., et al. *Hybrid CNN–GNN Architectures with Distributed Training for Heathland Plant Classification*, 2025.
 
----
+
 
 ## 9. Contact
 
