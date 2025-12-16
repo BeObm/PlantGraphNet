@@ -100,60 +100,29 @@ The script:
 
 
 
-## 5. Model Architecture
 
-### 5.1 Graph branch (GNN)
+## 4. Training and Evaluation
 
-* Three graph convolution layers
-* Normalization + dropout + nonlinearity at each layer
-* Global additive pooling to obtain graph-level embedding
-
-### 5.2 Image branch (CNN)
-
-* ResNet-50 pretrained on ImageNet-1K
-* Global average pooling to extract image-level features
-* Linear projection into shared embedding space
-
-### 5.3 Multimodal fusion
-
-* Concatenation of graph and image embeddings
-* Dropout regularization (p = 0.2)
-* Linear classifier for final prediction
-
-Unimodal variants (CNN-only, GNN-only) are also supported for ablation studies.
-
----
-
-## 6. Training and Evaluation
-
-### 6.1 Standard training
+### 4.1 Standard training
 
 ```bash
-python main_gnn.py \
-    --dataset_dir path/to/graph_dataset \
-    --model plantgraphnet \
-    --epochs 100 \
-    --batch_size 32 \
-    --lr 0.001
+python main_gnn.py 
 ```
 
-* Optimizer: Adam
-* Loss: categorical cross-entropy
-* Metrics: accuracy, precision, recall, F1-score
 
-### 6.2 Distributed Data-Parallel (DDP) training
+### 4.2 Distributed Data-Parallel (DDP) training
 
 The code supports **multi-GPU training** using PyTorch Distributed Data-Parallel:
 
 ```bash
-torchrun --nproc_per_node=4 main_gnn.py --model plantgraphnet
+torchrun --nproc_per_node=4 main_gnn.py 
 ```
 
 DDP provides **near-linear speed-up** while preserving convergence, as shown in the paper.
 
 ---
 
-## 7. Baseline Models
+## 5. Baseline Models
 
 The following CNN baselines are implemented and evaluated under identical settings :
 
@@ -167,16 +136,12 @@ The following CNN baselines are implemented and evaluated under identical settin
 ### Running a baseline
 
 ```bash
-python main_gnn.py \
-    --dataset_dir path/to/graph_dataset \
-    --model resnet50
+python Baselines/baseline_main.py \
+    --model_name AlexNet
 ```
-
-Backbone weights are ImageNet-pretrained and frozen; only classification heads are trained.
-
 ---
 
-## 8. Running on a New Dataset
+## 6. Running on a New Dataset
 
 To apply PlantGraphNet to a new plant or ecological dataset:
 
@@ -188,24 +153,11 @@ To apply PlantGraphNet to a new plant or ecological dataset:
    * alternative graph construction (RAG, superpixels) is desired
 4. Build graphs, split data, and train as usual
 
-The framework is adaptable to:
-
-* other vegetation types
-* multi-label classification
-* structurally complex biological imagery
-
 ---
 
-## 9. Reproducibility and Best Practices
 
-* Fix random seeds
-* Use identical splits for all models
-* Log hyperparameters and checkpoints
-* Report class-wise metrics and confusion matrices
 
----
-
-## 10. Limitations and Extensions
+## 7. Limitations and Extensions
 
 Current limitations (as discussed in the paper):
 
@@ -217,11 +169,11 @@ Possible extensions:
 * Adaptive or learned graph connectivity
 * Temporal or 3D plant modeling
 * Multilabel and open-world classification
-* Integration with segmentation models (e.g., SAM)
+* Integration with segmentation models
 
 ---
 
-## 11. Citation
+## 8. Citation
 
 If you use this code, please cite:
 
@@ -229,6 +181,6 @@ Oloulade, B. M., et al. *Hybrid CNN–GNN Architectures with Distributed Trainin
 
 ---
 
-## 12. Contact
+## 9. Contact
 
-For questions or collaboration, please contact the corresponding author.
+For questions or collaboration, please send an email to b.oloulade@ecos.au.dk.
