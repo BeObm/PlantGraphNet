@@ -1,17 +1,11 @@
 
 /dataset
 *.pth
-.idea/HeathlandSpeciesClassifier.iml
-.idea/misc.xml
 *.iml
 *.xml
 *.pyc
-*.pyc
 *.ipynb
 *.xlsx
-*.ini
-*.pdf
-*.csv
 *.ini
 *.pdf
 *.csv
